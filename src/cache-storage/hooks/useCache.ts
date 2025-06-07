@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CacheStorageUtil } from '../utils/CacheStorage';
+import { CacheStorageUtil } from '../CacheStorage';
 
 export function useCacheStorage(namespace?: string) {
   return useMemo(() => {
