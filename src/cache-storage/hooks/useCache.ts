@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { CacheStorageUtil } from '../CacheStorage';
 
-export function useCacheStorage(namespace?: string) {
+export function useCacheStorage<T extends Record<string, any>>(namespace?: string) {
   return useMemo(() => {
     const prefix = namespace ? `${namespace}/` : '';
-    const base = new CacheStorageUtil();
+    const base = new CacheStorageUtil<T>();
     return {
       put: (key: string, data: any, ttl?: number) => base.put(prefix + key, data, ttl),
       get: (key: string) => base.get(prefix + key),

@@ -1,7 +1,45 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "compilerOptions": {
+    /* Modern module & target */
+    "module": "esnext",
+    "moduleResolution": "node",
+    // 👇 Avoid "nodenext"
+    "target": "es2020",
+
+    /* Output */
+    "declaration": true,             // Generate .d.ts files
+    "declarationDir": "dist",
+    "emitDeclarationOnly": true,     // Skip JS build during DTS build
+    "outDir": "dist",                // Where tsup should also output
+    "removeComments": true,
+
+    /* React/JSX support */
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+
+    /* Module support */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    /* Type safety */
+    "strict": true,
+    "noImplicitAny": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    /* Path + typings fixes */
+    "baseUrl": "./src",
+    "paths": {
+      "@types/*": ["types/*"]
+    },
+    
+    /* Libs for DOM + FS API */
+    "lib": ["DOM", "DOM.Iterable", "ES2020"]
+  },
+
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

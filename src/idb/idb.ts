@@ -1,9 +1,6 @@
 "use client";
-let isClient = typeof window !== "undefined";
 
-if (isClient) {
-    require("dexie-observable");
-}
+
 import dot from "dot-object";
 import Dexie, { Table } from "dexie";
 import { Prettify } from "../types";
@@ -28,6 +25,13 @@ export class IDB<Tables extends { [key: string]: Table }> {
         this.db = new Dexie(name) as Dexie & Tables;
         this.db.version(version).stores(tables);
         !this.db.isOpen() && this.db.open();
+        if (typeof window !== "undefined") {
+            import("dexie-observable").then(() => this.useObservable());
+        }
+
+    }
+    private useObservable() {        
+        console.log("Observable activated");
     }
     getRawDb(): Dexie & Tables {
         return this.db;

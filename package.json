@@ -1,32 +1,75 @@
 {
   "name": "@enjoys/react-api",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
+  "sideEffects": false,
   "types": "dist/index.d.ts",
+  "homepage": "https://github.com/enjoys-in/react-api",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/enjoys-in/react-api.git"
+  },
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+    "./idb": {
+      "types": "./dist/idb/index.d.ts",
+      "import": "./dist/idb/index.mjs",
+      "require": "./dist/idb/index.js"
+    },
+    "./ofs": {
+      "types": "./dist/ofs/index.d.ts",
+      "import": "./dist/ofs/index.mjs",
+      "require": "./dist/ofs/index.js"
+    },
+    "./react-event": {
+      "types": "./dist/react-event/index.d.ts",
+      "import": "./dist/react-event/index.mjs",
+      "require": "./dist/react-event/index.js"
+    },
+    "./cache-storage": {
+      "types": "./dist/cache-storage/index.d.ts",
+      "import": "./dist/cache-storage/index.mjs",
+      "require": "./dist/cache-storage/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "keywords": [
-    "cache",
-    "storage",
     "react",
-    "hook",
-    "utility"
+    "react-hooks",
+    "typescript",
+    "browser",
+    "indexeddb",
+    "idb",
+    "ofs",
+    "file system access",
+    "filesystem api",
+    "file system",
+    "event hooks",
+    "custom event",
+    "react event",
+    "storage",
+    "data sync",
+    "client-side storage",
+    "offline storage",
+    "browser api",
+    "react api utils",
+    "react-api",
+    "enjoys",
+    "npm package",
+    "frontend utilities",
+    "file access react",
+    "web app storage",
+    "react file system",
+    "modern web api"
   ],
   "author": "ENJOYS",
   "license": "MIT",
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --out-dir dist",
+    "build": "tsup",
     "dev": "vite",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -55,5 +98,10 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": false
+    }
   }
 }

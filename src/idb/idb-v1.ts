@@ -1,10 +1,5 @@
 "use client";
-let isClient = typeof window !== "undefined";
-
-if (isClient) {
-    require("dexie-observable");
-}
-
+ 
 import Dexie, { Table } from "dexie";
 import dot from "dot-object";
 import { Prettify } from "../types";
@@ -24,6 +19,7 @@ class AirsendDB<Tables> extends Dexie {
         super(name);
         this.version(1).stores(schema as any);
     }
+
     /**
      * Retrieves the primary key for a given table.
      *
@@ -32,12 +28,12 @@ class AirsendDB<Tables> extends Dexie {
      */
     private getPrimaryKeyForTable(tableName: keyof Tables): string {
         const schema = this.tables[tableName as any].schema;
-        
-        const keys = schema.primKey.name.split(",").map((key:string) => key.trim());
-        const validKeys = keys.filter((key:string) => !key.startsWith("++"));
+
+        const keys = schema.primKey.name.split(",").map((key: string) => key.trim());
+        const validKeys = keys.filter((key: string) => !key.startsWith("++"));
         return validKeys[0];
     }
-    async has<T extends keyof Tables, Key extends PrimaryKeyType<Tables,T>>(
+    async has<T extends keyof Tables, Key extends PrimaryKeyType<Tables, T>>(
         table: T,
         key: Key
     ): Promise<boolean> {
@@ -273,7 +269,7 @@ class AirsendDB<Tables> extends Dexie {
      */
     async query<K extends keyof Tables>(
         table: K,
-        options: QueryOptions<Tables,K> = {}
+        options: QueryOptions<Tables, K> = {}
     ): Promise<any> {
         const {
             where,
@@ -504,7 +500,7 @@ class AirsendDB<Tables> extends Dexie {
         P extends NestedKeys<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKey: PrimaryKeyType<Tables,T>,
+        primaryKey: PrimaryKeyType<Tables, T>,
         path: P
     ): Promise<{
         success: boolean;
@@ -607,7 +603,7 @@ class AirsendDB<Tables> extends Dexie {
         Updates extends UpdatesForTable<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKeyValue: PrimaryKeyType<Tables,T>, // Primary key is dynamically typed based on the selected table
+        primaryKeyValue: PrimaryKeyType<Tables, T>, // Primary key is dynamically typed based on the selected table
         updates: Updates // Path is dynamically typed based on the table's entity structure
     ): Promise<{
         success: boolean;
@@ -680,7 +676,7 @@ class AirsendDB<Tables> extends Dexie {
         P extends NestedKeys<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKey: PrimaryKeyType<Tables,T>,
+        primaryKey: PrimaryKeyType<Tables, T>,
         path: P,
         value: PathValue<TableValue<Tables[T]>, P>
     ): Promise<{
@@ -730,7 +726,7 @@ class AirsendDB<Tables> extends Dexie {
         Updates extends UpdatesForTable<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKey: PrimaryKeyType<Tables,T>,
+        primaryKey: PrimaryKeyType<Tables, T>,
         updates: Updates
     ): Promise<
         Prettify<
@@ -798,7 +794,7 @@ class AirsendDB<Tables> extends Dexie {
         P extends NestedKeys<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKey: PrimaryKeyType<Tables,T>,
+        primaryKey: PrimaryKeyType<Tables, T>,
         path: P
     ): Promise<{
         success: boolean;
