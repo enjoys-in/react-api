@@ -1,22 +1,36 @@
-"use client"
-let isClient = typeof window !== "undefined"
+"use client";
+let isClient = typeof window !== "undefined";
 
 if (isClient) {
-    require("dexie-observable")
+    require("dexie-observable");
 }
 import dot from "dot-object";
 import Dexie, { Table } from "dexie";
-import { Prettify } from '../types';
-import { DotPathToNested, NestedKeys, PathValue, PrimaryKeyType, QueryOptions, TableSchema, TableValue, UpdatesForTable } from './types/idb.interface';
-
+import { Prettify } from "../types";
+import {
+    DotPathToNested,
+    NestedKeys,
+    PathValue,
+    PrimaryKeyType,
+    QueryOptions,
+    TableSchema,
+    TableValue,
+    UpdatesForTable,
+} from "./types/idb.interface";
 
 export class IDB<Tables extends { [key: string]: Table }> {
     private db: Dexie & Tables;
-    constructor(private readonly tables: TableSchema<Tables>, name: string = "idb", version: number = 1,) {
+    constructor(
+        private readonly tables: TableSchema<Tables>,
+        name: string = "idb",
+        version: number = 1
+    ) {
         this.db = new Dexie(name) as Dexie & Tables;
-        this.db.version(version)
-            .stores(tables)
+        this.db.version(version).stores(tables);
         !this.db.isOpen() && this.db.open();
+    }
+    getRawDb(): Dexie & Tables {
+        return this.db;
     }
     /**
      * Retrieves the primary key for a given table.
@@ -82,11 +96,11 @@ export class IDB<Tables extends { [key: string]: Table }> {
     }
     /*************  ✨ Windsurf Command ⭐  *************/
     /**
-    
-     * Closes the connection to the IndexedDB database if it is currently open.
-     *
-     * @returns A boolean indicating whether the database was open and subsequently closed.
-     */
+      
+       * Closes the connection to the IndexedDB database if it is currently open.
+       *
+       * @returns A boolean indicating whether the database was open and subsequently closed.
+       */
     closeDbConnection() {
         return this.db.isOpen() && this.db.close();
     }
@@ -452,7 +466,14 @@ export class IDB<Tables extends { [key: string]: Table }> {
     async getNestedValue<
         T extends keyof Tables,
         P extends NestedKeys<TableValue<Tables[T]>>
-    >(obj: T, path: P): Promise<{ success: boolean, path: P, value: PathValue<TableValue<Tables[T]>, P> | undefined }> {
+    >(
+        obj: T,
+        path: P
+    ): Promise<{
+        success: boolean;
+        path: P;
+        value: PathValue<TableValue<Tables[T]>, P> | undefined;
+    }> {
         const keys = path.split(".");
 
         const result = keys.reduce<any>((current, key) => {
@@ -460,7 +481,11 @@ export class IDB<Tables extends { [key: string]: Table }> {
             return current[key];
         }, obj) as PathValue<TableValue<Tables[T]>, P>;
 
-        return { success: true, path, value: result as PathValue<TableValue<Tables[T]>, P> }
+        return {
+            success: true,
+            path,
+            value: result as PathValue<TableValue<Tables[T]>, P>,
+        };
     }
 
     // Get a nested field with strict types for path and primaryKey
@@ -495,13 +520,14 @@ export class IDB<Tables extends { [key: string]: Table }> {
         try {
             const table = this.getTable(tableName) as Table<any, any>;
             const record = await table.get(primaryKey);
-            if (!record) return { success: false, path, value: undefined };;
+            if (!record) return { success: false, path, value: undefined };
 
             const keys = (path as string).split(".");
             let obj = record;
 
             for (const key of keys) {
-                if (obj == null || !(key in obj)) return { success: false, path, value: undefined };;
+                if (obj == null || !(key in obj))
+                    return { success: false, path, value: undefined };
                 obj = obj[key];
             }
 
@@ -509,7 +535,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
                 success: true,
                 path,
                 value: obj as PathValue<TableValue<Tables[T]>, P>,
-            }
+            };
         } catch (error) {
             return { success: false, path, value: undefined };
         }
@@ -523,7 +549,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
         paths: P[]
     ): Promise<{
         paths: P[];
-        value: DotPathToNested<{ [key in P]: PathValue<TableValue<Tables[T]>, P> }> | undefined;
+        value:
+        | DotPathToNested<{ [key in P]: PathValue<TableValue<Tables[T]>, P> }>
+        | undefined;
         success: boolean;
     }> {
         const table = this.getTable(tableName) as Table<any, any>;
@@ -546,7 +574,6 @@ export class IDB<Tables extends { [key: string]: Table }> {
             }
 
             if (isValid) {
-
                 let target = obj;
                 for (let i = 0; i < keys.length - 1; i++) {
                     const key = keys[i];
@@ -559,11 +586,12 @@ export class IDB<Tables extends { [key: string]: Table }> {
 
         return {
             paths,
-            value: dot.object(obj) as DotPathToNested<{ [key in P]: PathValue<TableValue<Tables[T]>, P> }>,
+            value: dot.object(obj) as DotPathToNested<{
+                [key in P]: PathValue<TableValue<Tables[T]>, P>;
+            }>,
             success: true,
         };
     }
-
 
     /**
      * Adds nested items to a specified table, updating existing records or creating a new one if necessary.
@@ -580,13 +608,20 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * - `updatedPaths`: An array of strings representing the paths that were updated.
      */
 
-    async addNestedItem<T extends keyof Tables,
+    async addNestedItem<
+        T extends keyof Tables,
         Updates extends UpdatesForTable<TableValue<Tables[T]>>
     >(
         tableName: T,
         primaryKeyValue: PrimaryKeyType<Tables, T>, // Primary key is dynamically typed based on the selected table
         updates: Updates // Path is dynamically typed based on the table's entity structure
-    ): Promise<{ success: boolean; created: boolean; updatedPaths: (keyof Updates)[], updates: Updates, oldValues: Partial<Updates> }> {
+    ): Promise<{
+        success: boolean;
+        created: boolean;
+        updatedPaths: (keyof Updates)[];
+        updates: Updates;
+        oldValues: Partial<Updates>;
+    }> {
         const table = this.getTable(tableName) as Table<any, any>;
 
         // Try to get existing record
@@ -601,7 +636,10 @@ export class IDB<Tables extends { [key: string]: Table }> {
         const updatedPaths: (keyof Updates)[] = [];
         const oldValues: Partial<Updates> = {};
 
-        for (const [path, value] of Object.entries(updates) as [keyof Updates, any][]) {
+        for (const [path, value] of Object.entries(updates) as [
+            keyof Updates,
+            any
+        ][]) {
             const keys = (path as string).split(".");
             let obj = record;
 
@@ -613,17 +651,14 @@ export class IDB<Tables extends { [key: string]: Table }> {
                 obj = obj[key];
             }
 
-
             const finalKey = keys[keys.length - 1];
             oldValues[path] = obj[finalKey];
             obj[finalKey] = value;
-
         }
 
         await table.put({ ...record, updatedAt: Date.now?.() });
 
         return { success: true, created, updatedPaths, updates, oldValues };
-
     }
 
     /**
@@ -683,7 +718,6 @@ export class IDB<Tables extends { [key: string]: Table }> {
         return { success: true, path, oldValue, newValue: value };
     }
 
-
     /**
      * Updates multiple nested fields in an item in the specified table.
      *
@@ -704,14 +738,26 @@ export class IDB<Tables extends { [key: string]: Table }> {
         tableName: T,
         primaryKey: PrimaryKeyType<Tables, T>,
         updates: Updates
-    ): Promise<Prettify<{ success: false; updated: (keyof Updates)[]; updates: null } | { success: true; updated: (keyof Updates)[]; updates: DotPathToNested<Updates> }>> {
+    ): Promise<
+        Prettify<
+            | { success: false; updated: (keyof Updates)[]; updates: null }
+            | {
+                success: true;
+                updated: (keyof Updates)[];
+                updates: DotPathToNested<Updates>;
+            }
+        >
+    > {
         const table = this.getTable(tableName) as Table<any, any>;
         const record = await table.get(primaryKey);
         if (!record) return { success: false, updated: [], updates: null };
 
         const updatedPaths: (keyof Updates)[] = [];
 
-        for (const [path, value] of Object.entries(updates) as [keyof Updates, any][]) {
+        for (const [path, value] of Object.entries(updates) as [
+            keyof Updates,
+            any
+        ][]) {
             const keys = (path as string).split(".");
             let obj = record;
 
@@ -730,7 +776,13 @@ export class IDB<Tables extends { [key: string]: Table }> {
 
         await table.put({ ...record, updatedAt: Date.now?.() });
 
-        return { success: true, updated: updatedPaths, updates: dot.object(updates) as DotPathToNested<{ [key in keyof Updates]: Updates[key] }> };
+        return {
+            success: true,
+            updated: updatedPaths,
+            updates: dot.object(updates) as DotPathToNested<{
+                [key in keyof Updates]: Updates[key];
+            }>,
+        };
     }
     /**
      * Deletes a nested field in an item in the specified table.
@@ -785,7 +837,6 @@ export class IDB<Tables extends { [key: string]: Table }> {
 
         return { success: false, path }; // nothing deleted
     }
-
 
     /**
      * Retrieves the type of a nested field in a table.

@@ -1,16 +1,37 @@
-import { type EntityTable, Table } from "dexie"
+import { type EntityTable, InsertType, Table } from "dexie";
+type FlatKeys<T> = {
+    [K in keyof T]: T[K] extends object
+    ? T[K] extends Array<any>
+    ? never
+    : K
+    : K;
+}[keyof T] &
+    string;
 
-export type IdbHooks =
-    {
-        source: any
-        table: string
-        key: string
-        type: number
-        mods: Record<string, any>
-        oldObj: Record<string, any>
-        obj: Record<string, any>
-        rev: number
-    }
+type CommaString<PK extends string, Extras extends string> =
+    | `++${PK}`
+    | `++${PK},${Extras}`;
+
+type PrimaryKeyFromTable<T> = T extends Table<
+    infer R,
+    any,
+    InsertType<infer R2, infer PK>
+>
+    ? R extends R2
+    ? PK
+    : never
+    : never;
+
+export type CreatePKTableSchema<
+    T extends Record<string, Table<any, any, any>>
+> = {
+        [K in keyof T]: T[K] extends Table<infer R, any, any>
+        ? CommaString<
+            PrimaryKeyFromTable<T[K]>,
+            Exclude<FlatKeys<R>, PrimaryKeyFromTable<T[K]>>
+        >
+        : never;
+    };
 
 export type SchemaForTables<
     TSchemas extends Record<string, any>,
@@ -21,48 +42,46 @@ export type SchemaForTables<
 
 export type TableValue<T> = T extends Table<infer U, any> ? U : never;
 type QueryOperator = "equals" | "anyOf" | "above" | "below" | "between";
-export type PrimaryKeyType<Tables,T extends keyof Tables> = Tables[T] extends Table<
-    infer U,
-    infer PK
->
-    ? PK
-    : never;
+export type PrimaryKeyType<
+    Tables,
+    T extends keyof Tables
+> = Tables[T] extends Table<infer U, infer PK> ? PK : never;
 
-export type Primitive = string | number | boolean | bigint | symbol | null | undefined;
-export type BuildNested<Value, Keys extends string[]> =
-    Keys extends [infer Head extends string, ...infer Rest extends string[]]
+export type Primitive =
+    | string
+    | number
+    | boolean
+    | bigint
+    | symbol
+    | null
+    | undefined;
+export type BuildNested<Value, Keys extends string[]> = Keys extends [
+    infer Head extends string,
+    ...infer Rest extends string[]
+]
     ? { [K in Head]: BuildNested<Value, Rest> }
     : Value;
 // Helper: Prepend parent key to child keys
 export type PrefixKeys<Prefix extends string, T> = {
-    [K in keyof T & string as `${Prefix}.${K}`]: T[K]
+    [K in keyof T & string as `${Prefix}.${K}`]: T[K];
 };
 
-
 export type NestedToDotPath<T, Prefix extends string = ""> = {
-    [K in keyof T & string]:
-    T[K] extends object
+    [K in keyof T & string]: T[K] extends object
     ? T[K] extends Array<any>
-    ? (
-        Prefix extends ""
-        ? { [P in K]: T[K] }
-        : { [P in `${Prefix}.${K}`]: T[K] }
-    )
-    : (
-        | (Prefix extends ""
-            ? NestedToDotPath<T[K], K>
-            : NestedToDotPath<T[K], `${Prefix}.${K}`>)
-    )
-    : (
-        Prefix extends ""
-        ? { [P in K]: T[K] }
-        : { [P in `${Prefix}.${K}`]: T[K] }
-    )
+    ? Prefix extends ""
+    ? { [P in K]: T[K] }
+    : { [P in `${Prefix}.${K}`]: T[K] }
+    : Prefix extends ""
+    ? NestedToDotPath<T[K], K>
+    : NestedToDotPath<T[K], `${Prefix}.${K}`>
+    : Prefix extends ""
+    ? { [P in K]: T[K] }
+    : { [P in `${Prefix}.${K}`]: T[K] };
 }[keyof T & string];
 
 export type Merge<A, B> = {
-    [K in keyof A | keyof B]:
-    K extends keyof B
+    [K in keyof A | keyof B]: K extends keyof B
     ? K extends keyof A
     ? A[K] extends object
     ? B[K] extends object
@@ -77,14 +96,17 @@ export type Merge<A, B> = {
 
 // Main type: Converts a dot-path-keyed object into a deeply nested one
 export type DotPathToNested<T extends Record<string, any>> = {
-    [K in keyof T]: BuildNested<T[K], Split<Extract<K, string>>>
+    [K in keyof T]: BuildNested<T[K], Split<Extract<K, string>>>;
 } extends infer Mapped
     ? UnionToIntersection<Mapped[keyof Mapped]>
     : never;
 
 // Helper: Convert union to intersection
-type UnionToIntersection<U> =
-    (U extends any ? (x: U) => void : never) extends (x: infer R) => void ? R : never;
+type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
+    x: infer R
+) => void
+    ? R
+    : never;
 
 export type OnlyNestedKeys<T, Prefix extends string = ""> = {
     [K in keyof T]: T[K] extends Primitive | Function | Array<any>
@@ -124,7 +146,6 @@ export type NestedValueFromPath<
     ? T[P]
     : never;
 
-
 export type Split<
     S extends string,
     Delimiter extends string = "."
@@ -155,14 +176,13 @@ export type UpdatesForTable<T> = {
 
 export type PartialUpdatesForTable<Tables, T extends keyof Tables> = Partial<{
     [P in NestedKeys<Tables[T]>]: PathValue<Tables[T], P>;
-  }>;
+}>;
 
 export type FieldType<
     Tables,
     T extends keyof Tables,
     P extends NestedKeys<Tables[T]>
 > = PathValue<Tables[T], P>;
-
 
 export type QueryWhere<Tables, K extends keyof Tables> = {
     field: keyof Tables[K];
@@ -191,8 +211,6 @@ export interface IDatabaseChange<Tables = Record<string, any>> {
     type: number;
     mods: Partial<Tables[keyof Tables]>; // updated fields
     oldObj: Tables[keyof Tables]; // old object
-    obj: Tables[keyof Tables];    // new object
+    obj: Tables[keyof Tables]; // new object
     rev: number;
 }
- 
-
