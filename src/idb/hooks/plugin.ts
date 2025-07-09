@@ -1,4 +1,3 @@
- 
 import Dexie from 'dexie';
 import { QueryBuilder } from 'idb/query-builder';
 

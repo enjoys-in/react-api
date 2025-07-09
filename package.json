@@ -1,6 +1,5 @@
 {
   "name": "@enjoys/react-api",
- 
   "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
@@ -75,6 +74,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@enjoys/react-api": "^0.0.2",
     "@rollup/rollup-darwin-x64": "^4.42.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

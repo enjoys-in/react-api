@@ -5,7 +5,7 @@ enum MyEvents {
 ```
 ### Use Same Event Name
 ```tsx
-import { useReactEvent } from "@enjoys/react-api/event";
+import { useReactEvent } from "@enjoys/react-api/dist/events";
 // Same compoenent
 export default function your_component() {
   const { emit } = useReactEvent(MyEvents.USER_LOGOUT);

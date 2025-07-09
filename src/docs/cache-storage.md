@@ -28,7 +28,7 @@ Features
 💾 Smart metadata – access created/updated timestamps, type, and size
 
 ```tsx
-import { CacheProvider, useCache } from '@enjoys/react-store';
+import { CacheProvider, useCache } from '@enjoys/react-api/dist/cache-storage';
 
 function App() {
   return (

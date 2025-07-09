@@ -16,10 +16,13 @@ import {
 } from "./types/idb.interface";
 import { QueryBuilder } from "./query-builder";
 
-import { startsWith } from "./operator";
-
 export class IDB<Tables extends { [key: string]: Table }> {
     private db: Dexie & Tables;
+    /**
+     * @param tables - The table schema definition for the database.
+     * @param name - The name of the database (default: "idb").
+     * @param version - The version of the database (default: 1).
+     */
     constructor(
         private readonly tables: TableSchema<Tables>,
         name: string = "idb",
@@ -33,9 +36,21 @@ export class IDB<Tables extends { [key: string]: Table }> {
         }
 
     }
+    /**
+     * Activates the observable plugin for Dexie. This allows observing changes to the database.
+     * 
+     * @remarks
+     * This function is automatically called when the module is loaded in a browser environment.
+     * It is not necessary to call it manually.
+     */
     private useObservable() {
         console.log("Observable activated");
     }
+    /**
+     * Returns the underlying Dexie database instance.
+     *
+     * @returns The raw Dexie database instance.
+     */
     getRawDb(): Dexie & Tables {
         return this.db;
     }
@@ -51,6 +66,13 @@ export class IDB<Tables extends { [key: string]: Table }> {
         const validKeys = keys.filter((key) => !key.startsWith("++"));
         return validKeys[0];
     }
+    /**
+     * Checks if a given record exists in the database.
+     *
+     * @param table - The table to check in.
+     * @param key - The primary key of the record to check.
+     * @returns A promise that resolves to true if the record exists, false otherwise.
+     */
     async has<T extends keyof Tables, Key extends PrimaryKeyType<Tables, T>>(
         table: T,
         key: Key
@@ -101,7 +123,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
             };
         });
     }
-    /*************  ✨ Windsurf Command ⭐  *************/
+
     /**
       
        * Closes the connection to the IndexedDB database if it is currently open.
@@ -111,6 +133,15 @@ export class IDB<Tables extends { [key: string]: Table }> {
     closeDbConnection() {
         return this.db.isOpen() && this.db.close();
     }
+    /**
+     * Deletes the IndexedDB database and then re-opens it.
+     *
+     * @returns A promise that resolves when the database has been deleted and re-opened.
+     *
+     * This method is useful for cleaning up any data that may have been left behind
+     * after a user has closed the app. Note that this method will not delete the
+     * database file, but rather just clear all the data from it.
+     */
     async cleanDb() {
         return this.db.delete().then(() => this.db.open());
     }

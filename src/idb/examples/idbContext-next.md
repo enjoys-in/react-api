@@ -2,7 +2,7 @@
 "use client";
 import React, { createContext } from "react";
 import dynamic from "next/dynamic";
-import { IDB, CreatePKTableSchema } from "@enjoys/react-api";
+import { IDB, CreatePKTableSchema } from "@enjoys/react-api/dist/idb";
 import { EntityTable } from "dexie";
 
 const IdbSyncHookApi = dynamic(() => import("./hook-api"), {

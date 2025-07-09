@@ -1,6 +1,6 @@
 ```tsx
 import React, { createContext } from "react";
-import { IDB, CreatePKTableSchema } from "@enjoys/react-api";
+import { IDB, CreatePKTableSchema } from "@enjoys/react-api/dist/idb";
 import { EntityTable } from "dexie";
 import IdbSyncHookApi from "./hook-api";
 

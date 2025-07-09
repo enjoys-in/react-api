@@ -1,3 +1,5 @@
 export * from "./idb"
 export * from "./types/idb.interface"
+export * from "./types/orm.interface"
 export * from "./hooks/useRegisterDexieHook"
+export * from "./hooks/plugin"
