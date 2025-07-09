@@ -14,6 +14,9 @@ import {
     TableValue,
     UpdatesForTable,
 } from "./types/idb.interface";
+import { QueryBuilder } from "./query-builder";
+
+import { startsWith } from "./operator";
 
 export class IDB<Tables extends { [key: string]: Table }> {
     private db: Dexie & Tables;
@@ -30,7 +33,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         }
 
     }
-    private useObservable() {        
+    private useObservable() {
         console.log("Observable activated");
     }
     getRawDb(): Dexie & Tables {
@@ -859,5 +862,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
         P extends NestedKeys<TableValue<Tables[T]>>
     >(table: T, path: P): PathValue<TableValue<Tables[T]>, P> {
         return undefined as any;
+    }
+    rawQuery<T extends keyof Tables>(table: T) {
+        return new QueryBuilder<Tables, T>(this.db, table);
     }
 }
