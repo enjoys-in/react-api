@@ -1,6 +1,6 @@
 {
   "name": "@enjoys/react-api",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -22,10 +22,10 @@
       "import": "./dist/ofs/index.mjs",
       "require": "./dist/ofs/index.js"
     },
-    "./react-event": {
-      "types": "./dist/react-event/index.d.ts",
-      "import": "./dist/react-event/index.mjs",
-      "require": "./dist/react-event/index.js"
+    "./events": {
+      "types": "./dist/events/react-event.d.ts",
+      "import": "./dist/events/react-event.mjs",
+      "require": "./dist/events/react-event.js"
     },
     "./cache-storage": {
       "types": "./dist/cache-storage/index.d.ts",

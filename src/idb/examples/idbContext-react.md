@@ -4,7 +4,7 @@ import { IDB, CreatePKTableSchema } from "@enjoys/react-api/dist/idb";
 import { EntityTable } from "dexie";
 import IdbSyncHookApi from "./hook-api";
 
-interface MyTables {
+type MyTables= {
   demo: EntityTable<{ name: string; id: number }, "id">;
 }
 interface ReactApiContextProps {

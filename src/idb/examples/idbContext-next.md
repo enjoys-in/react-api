@@ -8,7 +8,7 @@ import { EntityTable } from "dexie";
 const IdbSyncHookApi = dynamic(() => import("./hook-api"), {
   ssr: false,
 });
-interface MyTables {
+type MyTables ={
   demo: EntityTable<{ name: string; id: number }, "id">;
 }
 ``;

@@ -118,10 +118,12 @@ export type OnlyNestedKeys<T, Prefix extends string = ""> = {
 
 type Prev = [never, 0, 1, 2, 3, 4, 5];
 
+
+
 type IsPlainObject<T> = T extends object
-    ? T extends Function
+    ? T extends any[]
     ? false
-    : T extends any[]
+    : T extends Function
     ? false
     : true
     : false;
