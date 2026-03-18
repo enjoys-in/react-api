@@ -1,4 +1,4 @@
-import { Operator } from "idb/operator";
+import { Operator } from "../operator";
 
 export type OperatorType =
   | 'equals'

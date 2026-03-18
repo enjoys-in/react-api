@@ -32,7 +32,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         this.db.version(version).stores(tables);
         !this.db.isOpen() && this.db.open();
         if (typeof window !== "undefined") {
-            import("dexie-observable").then(() => this.useObservable());
+            import("dexie-observable").then(() => this.useObservable()).catch(() => {});
         }
 
     }
@@ -251,6 +251,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         sorted: boolean = false
     ): Promise<Array<TableValue<Tables[K]>>> {
+        if (sorted) {
+            return this.getTable(table).orderBy(':id').toArray();
+        }
         return this.getTable(table).toArray();
     }
     /**
@@ -505,22 +508,26 @@ export class IDB<Tables extends { [key: string]: Table }> {
         T extends keyof Tables,
         P extends NestedKeys<TableValue<Tables[T]>>
     >(
-        obj: T,
+        tableName: T,
+        primaryKey: PrimaryKeyType<Tables, T>,
         path: P
     ): Promise<{
         success: boolean;
         path: P;
         value: PathValue<TableValue<Tables[T]>, P> | undefined;
     }> {
-        const keys = path.split(".");
+        const table = this.getTable(tableName) as Table<any, any>;
+        const record = await table.get(primaryKey);
+        if (!record) return { success: false, path, value: undefined };
 
+        const keys = path.split(".");
         const result = keys.reduce<any>((current, key) => {
-            if (current == null) return { success: false, path, value: undefined };
+            if (current == null) return undefined;
             return current[key];
-        }, obj) as PathValue<TableValue<Tables[T]>, P>;
+        }, record);
 
         return {
-            success: true,
+            success: result !== undefined,
             path,
             value: result as PathValue<TableValue<Tables[T]>, P>,
         };
@@ -692,9 +699,10 @@ export class IDB<Tables extends { [key: string]: Table }> {
             const finalKey = keys[keys.length - 1];
             oldValues[path] = obj[finalKey];
             obj[finalKey] = value;
+            updatedPaths.push(path);
         }
 
-        await table.put({ ...record, updatedAt: Date.now?.() });
+        await table.put({ ...record, updatedAt: Date.now() });
 
         return { success: true, created, updatedPaths, updates, oldValues };
     }
@@ -751,7 +759,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         const oldValue = obj[finalKey];
         obj[finalKey] = value;
 
-        await table.put({ ...record, updatedAt: Date.now?.() });
+        await table.put({ ...record, updatedAt: Date.now() });
 
         return { success: true, path, oldValue, newValue: value };
     }
@@ -812,7 +820,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
             updatedPaths.push(path);
         }
 
-        await table.put({ ...record, updatedAt: Date.now?.() });
+        await table.put({ ...record, updatedAt: Date.now() });
 
         return {
             success: true,
@@ -869,7 +877,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
 
         if (finalKey in obj) {
             delete obj[finalKey];
-            await table.put({ ...record, updatedAt: Date.now?.() });
+            await table.put({ ...record, updatedAt: Date.now() });
             return { success: true, path, deletedValue };
         }
 

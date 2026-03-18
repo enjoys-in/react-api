@@ -6,7 +6,7 @@ export type CacheMeta = {
 
 export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
   private cacheName: string;
-  private metaKey = 'cache://__meta__';
+  private metaKey = '/__cache_meta__';
 
   constructor(cacheName = 'api-cache') {
     this.cacheName = cacheName;

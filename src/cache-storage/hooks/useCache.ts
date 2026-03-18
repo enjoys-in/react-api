@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { CacheStorageUtil } from '../CacheStorage';
 
-export function useCacheStorage2<T extends Record<string, any>>(namespace?: string) {
+export function useCache<T extends Record<string, any>>(namespace?: string) {
   return useMemo(() => {
     const prefix = namespace ? `${namespace}/` : '';
     const base = new CacheStorageUtil<T>();
@@ -13,7 +13,10 @@ export function useCacheStorage2<T extends Record<string, any>>(namespace?: stri
       delete: (key: string) => base.delete(prefix + key),
       has: (key: string) => base.has(prefix + key),
       keys: () => base.select((k) => k.startsWith(prefix)),
-      clear: () => base.select((k) => k.startsWith(prefix)).then(keys => keys.forEach(k => base.delete(k))),
+      clear: async () => {
+        const keys = await base.select((k) => k.startsWith(prefix));
+        await Promise.all(keys.map(k => base.delete(k)));
+      },
       size: () => base.select((k) => k.startsWith(prefix)).then(res => res.length),
       select: (filter: (key: string, meta: any) => boolean) =>
         base.select((k, m) => k.startsWith(prefix) && filter(k, m)),

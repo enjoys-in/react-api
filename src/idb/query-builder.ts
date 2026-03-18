@@ -329,7 +329,7 @@ export class QueryBuilder<
      * @returns A promise that resolves once all items have been deleted.
      */
     async deleteMany(ids: Key<Tables, TableName>[]) {
-        return Promise.all(ids.map(id => this.table.delete(id)));
+        return this.table.bulkDelete(ids);
     }
 
     /**

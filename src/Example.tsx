@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useCache } from './hooks/useCache';
+import { useCache } from './cache-storage/hooks/useCache';
 
 export default function ExampleComponent() {
   const cache = useCache('images');

@@ -15,12 +15,11 @@ const debounce = (fn: Function, delay: number) => {
 /**
  * Custom event hook with memoized handlers to prevent recreations on every render.
  */
-export function useReactEvent<EventKey extends string, T = any>(eventKey: EventKey, handler?: Callback<T>) {
+export function useReactEvent<EventKey extends string, T = any>(eventKey: EventKey) {
     const onceFired = useRef(false);
 
     // Emit event, memoized so `emit` has stable reference
     const emit = useCallback((payload?: T) => {
-        console.log('Event Fired');
         window.dispatchEvent(new CustomEvent(eventKey, { detail: payload }));
     }, [eventKey]);
 

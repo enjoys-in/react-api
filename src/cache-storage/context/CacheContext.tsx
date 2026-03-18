@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { CacheStorageUtil } from '../CacheStorage';
 
 
@@ -11,16 +11,16 @@ export function createCacheProvider<T extends Record<string, any> = Record<strin
     const CacheContext = createContext<CacheContextType<T> | undefined>(undefined);
 
     const CacheProvider = ({
-        namespace,
+        namespace = 'api-cache-v1',
         children,
     }: {
         namespace?: string;
         children: React.ReactNode;
     }) => {
-        const cache = new CacheStorageUtil<T>();
+        const cache = useMemo(() => new CacheStorageUtil<T>(namespace), [namespace]);
 
         return (
-            <CacheContext.Provider value={{ cache, namespace: namespace ? namespace : "api-cache-v1" }}>
+            <CacheContext.Provider value={{ cache, namespace }}>
                 {children}
             </CacheContext.Provider>
         );
@@ -40,8 +40,10 @@ export function createCacheProvider<T extends Record<string, any> = Record<strin
             delete: (key: keyof T) => cache.delete(`${prefix}${String(key)}`),
             has: (key: keyof T) => cache.has(`${prefix}${String(key)}`),
             keys: () => cache.select((k) => k.startsWith(prefix)),
-            clear: () =>
-                cache.select((k) => k.startsWith(prefix)).then((keys) => keys.forEach((k) => cache.delete(k))),
+            clear: async () => {
+                const keys = await cache.select((k) => k.startsWith(prefix));
+                await Promise.all(keys.map((k) => cache.delete(k)));
+            },
             size: () => cache.select((k) => k.startsWith(prefix)).then((res) => res.length),
             select: (filter: (key: string, meta: any) => boolean) =>
                 cache.select((k, m) => k.startsWith(prefix) && filter(k, m)),
@@ -50,9 +52,3 @@ export function createCacheProvider<T extends Record<string, any> = Record<strin
 
     return { CacheProvider, useCacheStorage };
 }
-interface MyCacheSchema {
-    user: { name: string };
-    token: string;
-}
-
-export const { CacheProvider, useCacheStorage } = createCacheProvider<MyCacheSchema>();

@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import { QueryBuilder } from 'idb/query-builder';
+import { QueryBuilder } from '../query-builder';
 
 export function useQueryBuilder<Tables extends Record<string, Dexie.Table<any, any>>>(db: Dexie & Tables) {
   return {
