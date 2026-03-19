@@ -9,6 +9,7 @@ import {
     NestedKeys,
     PathValue,
     PrimaryKeyType,
+    QueryOperator,
     QueryOptions,
     TableInsertType,
     TableSchema,
@@ -155,8 +156,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * Note that this function is private and should not be called directly.
      */
-    private getTable<K extends keyof Tables>(tableName: K) {
-        return this.db.table(tableName as string);
+    private getTable<K extends keyof Tables>(tableName: K): Table<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>> {
+        return this.db.table(tableName as string) as unknown as Table<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
     }
 
     /**
@@ -174,8 +175,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
     async addItem<K extends keyof Tables>(
         table: K,
         item: TableInsertType<Tables[K]>
-    ) {
-        return this.getTable(table).add(item);
+    ): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).add(item as TableValue<Tables[K]>) as Promise<PrimaryKeyType<Tables, K>>;
     }
 
     /**
@@ -190,8 +191,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
     async bulkAddItems<K extends keyof Tables>(
         table: K,
         items: TableInsertType<Tables[K]>[]
-    ) {
-        return this.getTable(table).bulkAdd(items);
+    ): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).bulkAdd(items as TableValue<Tables[K]>[]) as Promise<PrimaryKeyType<Tables, K>>;
     }
 
     /**
@@ -207,8 +208,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
     async putItem<K extends keyof Tables>(
         table: K,
         item: TableInsertType<Tables[K]>
-    ) {
-        return this.getTable(table).put(item);
+    ): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).put(item as TableValue<Tables[K]>) as Promise<PrimaryKeyType<Tables, K>>;
     }
     /**
      * Adds or updates multiple items in the specified table in a single transaction.
@@ -220,10 +221,28 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns The number of items added or updated.
      */
-    async bulkPutItems<K extends keyof Tables>(table: K, items: TableValue<Tables[K]>[]) {
-        return this.getTable(table).bulkPut(items);
+    async bulkPutItems<K extends keyof Tables>(table: K, items: TableValue<Tables[K]>[]): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).bulkPut(items) as Promise<PrimaryKeyType<Tables, K>>;
     }
     // 🟢 Read
+
+    /**
+     * Retrieves multiple items from the specified table by their primary keys.
+     * Per Dexie docs: Table.bulkGet(keys) - returns an array where each position
+     * corresponds to the key at the same position in the input array.
+     * Items not found will be undefined at their position.
+     *
+     * @param table - The name of the table to retrieve items from.
+     * @param keys - An array of primary keys to look up.
+     *
+     * @returns An array of items (or undefined) corresponding to the given keys.
+     */
+    async bulkGet<K extends keyof Tables>(
+        table: K,
+        keys: PrimaryKeyType<Tables, K>[]
+    ): Promise<(TableValue<Tables[K]> | undefined)[]> {
+        return this.getTable(table).bulkGet(keys);
+    }
 
     /**
      * Retrieves an item from the specified table by its primary key.
@@ -237,7 +256,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         value: PrimaryKeyType<Tables, K>
     ): Promise<TableValue<Tables[K]> | undefined> {
-        return this.getTable(table).get(value as any);
+        return this.getTable(table).get(value);
     }
 
     /**
@@ -340,25 +359,34 @@ export class IDB<Tables extends { [key: string]: Table }> {
             raw = false,
         } = options;
 
-        const tableRef = this.getTable<K>(table) as unknown as Table<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
+        const tableRef = this.getTable<K>(table);
         let collection: Dexie.Collection<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
 
         // Apply where clause if present
         if (where) {
             const { field, operator = "equals", value } = where;
-            const clause = tableRef.where(field as any);
+            const clause = tableRef.where(field as string);
             switch (operator) {
                 case "equals":
                     collection = clause.equals(value);
                     break;
+                case "notEqual":
+                    collection = clause.notEqual(value);
+                    break;
                 case "anyOf":
-                    collection = clause.anyOf(value);
+                    collection = clause.anyOf(value as any[]);
                     break;
                 case "above":
                     collection = clause.above(value);
                     break;
+                case "aboveOrEqual":
+                    collection = clause.aboveOrEqual(value);
+                    break;
                 case "below":
                     collection = clause.below(value);
+                    break;
+                case "belowOrEqual":
+                    collection = clause.belowOrEqual(value);
                     break;
                 case "between":
                     if (Array.isArray(value) && value.length === 2) {
@@ -367,8 +395,21 @@ export class IDB<Tables extends { [key: string]: Table }> {
                         throw new Error("Value for 'between' must be a 2-element array");
                     }
                     break;
+                case "noneOf":
+                    collection = clause.noneOf(value as any[]);
+                    break;
+                case "startsWith":
+                    collection = clause.startsWith(value as string);
+                    break;
+                case "startsWithAnyOf":
+                    collection = clause.startsWithAnyOf(value as string[]);
+                    break;
+                case "inAnyRange":
+                    collection = clause.inAnyRange(value as [any, any][]);
+                    break;
                 default:
-                    throw new Error(`Unsupported operator: ${operator}`);
+                    const _exhaustive: never = operator;
+                    throw new Error(`Unsupported operator: ${_exhaustive}`);
             }
         } else {
             collection = tableRef.toCollection();
@@ -424,8 +465,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         field_value: PrimaryKeyType<Tables, K>,
         updated: Partial<TableValue<Tables[K]>>
-    ) {
-        return this.getTable(table).update(field_value as any, updated);
+    ): Promise<number> {
+        return this.getTable(table).update(field_value, updated);
     }
 
     // 🔴 Delete
@@ -438,8 +479,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns A promise that resolves once the item has been deleted.
      */
-    async deleteItem<K extends keyof Tables>(table: K, field_value: PrimaryKeyType<Tables, K>) {
-        return this.getTable(table).delete(field_value as any);
+    async deleteItem<K extends keyof Tables>(table: K, field_value: PrimaryKeyType<Tables, K>): Promise<void> {
+        return this.getTable(table).delete(field_value);
     }
 
     /**
@@ -450,8 +491,48 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns A promise that resolves once the items have been deleted.
      */
-    async bulkDeleteItems<K extends keyof Tables>(table: K, keys: PrimaryKeyType<Tables, K>[]) {
-        return this.getTable(table).bulkDelete(keys as any[]);
+    async bulkDeleteItems<K extends keyof Tables>(table: K, keys: PrimaryKeyType<Tables, K>[]): Promise<void> {
+        return this.getTable(table).bulkDelete(keys);
+    }
+
+    /**
+     * Clears all items from the specified table.
+     * Per Dexie docs: Table.clear() - clears all objects in the store.
+     *
+     * @param table - The name of the table to clear.
+     * @returns A promise that resolves once the table has been cleared.
+     */
+    async clearTable<K extends keyof Tables>(table: K): Promise<void> {
+        return this.getTable(table).clear();
+    }
+
+    /**
+     * Counts all items in the specified table.
+     * Per Dexie docs: Table.count() - count all objects.
+     *
+     * @param table - The name of the table to count.
+     * @returns A promise resolving to the number of items in the table.
+     */
+    async countItems<K extends keyof Tables>(table: K): Promise<number> {
+        return this.getTable(table).count();
+    }
+
+    /**
+     * Executes a strongly-typed transaction across one or more tables.
+     * Per Dexie docs: Dexie.transaction(mode, tables, callback) - atomic operations.
+     *
+     * @param mode - The transaction mode: 'r' for readonly, 'rw' for readwrite.
+     * @param tables - An array of table names to include in the transaction.
+     * @param callback - The function to execute within the transaction scope.
+     * @returns A promise resolving to the return value of the callback.
+     */
+    async transaction<R>(
+        mode: 'r' | 'rw',
+        tables: (keyof Tables)[],
+        callback: () => Promise<R>
+    ): Promise<R> {
+        const tableRefs = tables.map(t => this.db.table(t as string));
+        return this.db.transaction(mode, tableRefs, callback);
     }
 
     /**
@@ -470,14 +551,14 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         keyField: keyof TableValue<Tables[K]>,
         maxLimit = 50
-    ) {
-        const items = (await this.getAllItems<K>(table)) as any[];
+    ): Promise<void> {
+        const items = await this.getAllItems<K>(table);
 
         if (items.length > maxLimit) {
             const oldest = items.slice(0, items.length - maxLimit);
             await this.bulkDeleteItems(
                 table,
-                oldest.map((item) => item[keyField])
+                oldest.map((item) => item[keyField] as PrimaryKeyType<Tables, K>)
             );
         }
     }

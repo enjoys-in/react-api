@@ -42,7 +42,19 @@ export type SchemaForTables<
 
 export type TableValue<T> = T extends Table<infer U, any> ? U : never;
 export type TableInsertType<T> = T extends Table<any, any, infer I> ? I : never;
-type QueryOperator = "equals" | "anyOf" | "above" | "below" | "between";
+export type QueryOperator =
+    | "equals"
+    | "anyOf"
+    | "above"
+    | "below"
+    | "between"
+    | "aboveOrEqual"
+    | "belowOrEqual"
+    | "noneOf"
+    | "notEqual"
+    | "startsWith"
+    | "startsWithAnyOf"
+    | "inAnyRange";
 export type PrimaryKeyType<
     Tables,
     T extends keyof Tables

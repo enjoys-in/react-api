@@ -190,9 +190,12 @@ export class QueryBuilder<
             case 'anyOf': return Array.isArray(value) && value.includes(val);
             case 'above': return val > value;
             case 'below': return val < value;
-            case 'gte': return val >= value;
-            case 'lte': return val <= value;
+            case 'aboveOrEqual': return val >= value;
+            case 'belowOrEqual': return val <= value;
             case 'between': return Array.isArray(value) && val >= value[0] && val <= value[1];
+            case 'noneOf': return Array.isArray(value) && !value.includes(val);
+            case 'inAnyRange': return Array.isArray(value) && value.some((range: [any, any]) => val >= range[0] && val <= range[1]);
+            case 'startsWithAnyOf': return typeof val === 'string' && Array.isArray(value) && value.some((prefix: string) => val.startsWith(prefix));
             default: return true;
         }
     }

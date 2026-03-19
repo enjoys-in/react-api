@@ -1,4 +1,3 @@
-```tsx
 # Events
 
 A lightweight, SSR-safe React hook for cross-component communication using the browser's native `CustomEvent` API. No state management library needed.
