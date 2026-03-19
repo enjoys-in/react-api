@@ -43,7 +43,12 @@ const jsBundles: RollupOptions[] = entries.map(({ input, dir }) => ({
       emitDeclarationOnly: false,
       outDir: undefined,
     }),
-    terser(),
+    terser({
+      format: {
+        comments: 'some',
+        preserve_annotations: true,
+      },
+    }),
   ],
 }));
 

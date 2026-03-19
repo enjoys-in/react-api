@@ -11,7 +11,7 @@
     "declaration": true,             // Generate .d.ts files
     "declarationDir": "dist",
     "outDir": "dist",
-    "removeComments": true,
+    "removeComments": false,
 
     /* React/JSX support */
     "jsx": "react-jsx",

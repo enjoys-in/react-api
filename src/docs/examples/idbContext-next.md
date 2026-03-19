@@ -2,18 +2,26 @@
 "use client";
 import React, { createContext } from "react";
 import dynamic from "next/dynamic";
-import { IDB, CreatePKTableSchema } from "@enjoys/react-api/dist/idb";
-import { EntityTable } from "dexie";
+import { IDB, type TableSchema } from "@enjoys/react-api/idb";
+import { type EntityTable } from "dexie";
 
 const IdbSyncHookApi = dynamic(() => import("./hook-api"), {
   ssr: false,
 });
-type MyTables ={
-  demo: EntityTable<{ name: string; id: number }, "id">;
+
+// Step 1: Define your entity
+interface Demo {
+  id: number;
+  name: string;
 }
-``;
+
+// Step 2: Define Tables — EntityTable<Entity, PK> selects the primary key
+type MyTables = {
+  demo: EntityTable<Demo, "id">; // 'id' is the primary key
+};
+
 interface ReactApiContextProps {
-  db: IDB;
+  db: IDB<MyTables>;
 }
 
 export const ReactApiContext = createContext<ReactApiContextProps | undefined>(
@@ -23,10 +31,13 @@ export const ReactApiContext = createContext<ReactApiContextProps | undefined>(
 export const ReactApiContextProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-  const tables: CreatePKTableSchema<MyTables> = {
-    demo: "++id",
-  };
-  const db = new IDB(tables, "idb");
+  // Step 3: Define schema — '++id' = auto-increment PK, 'name' = indexed field
+  const tables = {
+    demo: "++id,name",
+  } satisfies TableSchema<MyTables>;
+
+  const db = new IDB<MyTables>(tables, "idb", 1);
+
   return (
     <ReactApiContext.Provider value={{ db }}>
       <IdbSyncHookApi db={db} />

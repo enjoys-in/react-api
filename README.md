@@ -46,15 +46,29 @@ npm install dexie dot-object
 ### IndexedDB
 
 ```tsx
-import { IDB, CreatePKTableSchema, createQueryBuilder, equals } from '@enjoys/react-api/idb';
+import { IDB, type TableSchema, createQueryBuilder, equals, above } from '@enjoys/react-api/idb';
 import { type EntityTable } from 'dexie';
 
+// Step 1: Define your entity
+interface User {
+  id: string;
+  name: string;
+  age: number;
+}
+
+// Step 2: Define Tables — pick the primary key per table via EntityTable<Entity, PK>
+//         PK must be a key of the entity ('id' | 'name' | 'age' here)
 type Tables = {
-  users: EntityTable<{ id: string; name: string; age: number }, 'id'>;
+  users: EntityTable<User, 'id'>; // ← 'id' is the chosen primary key
 };
 
-const schema: CreatePKTableSchema<Tables> = { users: 'id' };
-const idb = new IDB(schema, 'my-app');
+// Step 3: Define schema — TypeScript auto-enforces the PK from Step 2
+//         '++' prefix = auto-increment; remaining fields = indexed columns
+const schema = {
+  users: '++id,name,age', // ← 'id' must appear first; 'name','age' are optional indexes
+} satisfies TableSchema<Tables>;
+
+const idb = new IDB<Tables>(schema, 'my-app', 1);
 
 // CRUD
 await idb.addItem('users', { id: '1', name: 'Alice', age: 30 });

@@ -4,7 +4,7 @@ A fully typed IndexedDB wrapper built on [Dexie.js](https://dexie.org/), with a 
 
 ## Features
 
-- **Typed schema** – `CreatePKTableSchema<Tables>` auto-suggests primary keys
+- **Typed schema** – `TableSchema<Tables>` auto-suggests primary keys, `++` prefix, and indexed fields
 - **CRUD** – `addItem`, `putItem`, `getItemByKey`, `updateItem`, `deleteItem`, bulk variants
 - **Nested object operations** – read/write deeply nested fields using dot-notation paths
 - **Fluent QueryBuilder** – chainable `where`, `or`, `orderBy`, `limit`, `offset`, `select`, `join`
@@ -22,26 +22,37 @@ A fully typed IndexedDB wrapper built on [Dexie.js](https://dexie.org/), with a 
 
 ```tsx
 import { type EntityTable } from 'dexie';
-import { IDB, CreatePKTableSchema } from '@enjoys/react-api/idb';
+import { IDB, type TableSchema } from '@enjoys/react-api/idb';
 
+// Step 1: Define your entity interfaces
+interface Mail {
+  message_id: string;
+  subject: string;
+  body: string;
+}
+
+interface User {
+  user_id: string;
+  name: string;
+  settings: { theme: string; notifications: boolean };
+}
+
+// Step 2: Define Tables — EntityTable<Entity, PK> selects the primary key
+//         The second generic is the PK field name — must be a key of the entity
 type Tables = {
-  mails: EntityTable<{ message_id: string; subject: string; body: string }, 'message_id'>;
-  users: EntityTable<
-    {
-      user_id: string;
-      name: string;
-      settings: { theme: string; notifications: boolean };
-    },
-    'user_id'
-  >;
+  mails: EntityTable<Mail, 'message_id'>;  // PK = message_id
+  users: EntityTable<User, 'user_id'>;     // PK = user_id
 };
 
-const schema: CreatePKTableSchema<Tables> = {
-  mails: 'message_id',
-  users: 'user_id',
-};
+// Step 3: Define schema — TypeScript enforces PK first, suggests remaining fields as indexes
+//         '++' prefix = auto-increment primary key
+//         Without '++' = manually supplied primary key
+const schema = {
+  mails: '++message_id,subject',  // auto-increment PK + 'subject' indexed
+  users: 'user_id,name',          // manual PK + 'name' indexed
+} satisfies TableSchema<Tables>;
 
-const idb = new IDB(schema, 'my-database', 1);
+const idb = new IDB<Tables>(schema, 'my-database', 1);
 ```
 
 ---
