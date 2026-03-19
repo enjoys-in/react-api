@@ -52,6 +52,11 @@ export interface UseReactEventOptions {
     debounceDelay?: number;
 }
 
+export interface UseEventListenerOptions {
+    /** Optional namespace prefix to avoid event key collisions across modules. */
+    namespace?: string;
+}
+
 export interface UseReactEventReturn<T> {
     emit: (payload?: T) => void;
     emitOnce: (payload?: T) => void;
@@ -92,6 +97,13 @@ export function useReactEvent<
 
     const onceFired = useRef(false);
 
+    // Reset onceFired when the event key changes so emitOnce works correctly on new keys
+    const prevKeyRef = useRef(fullKey);
+    if (prevKeyRef.current !== fullKey) {
+        prevKeyRef.current = fullKey;
+        onceFired.current = false;
+    }
+
     const emit = useCallback((payload?: T) => {
         if (!isBrowser) return;
         window.dispatchEvent(new CustomEvent(fullKey, { detail: payload }));
@@ -117,21 +129,33 @@ export function useReactEvent<
         return () => emitDebounced.cancel();
     }, [emitDebounced]);
 
+    // Use a ref to always have the latest handler, avoiding stale closures in listen/listenOnce
     const listen = useCallback((handler: Callback<T>) => {
         if (!isBrowser) return () => {};
-        const wrapper = (e: Event) => handler((e as CustomEvent<T>).detail);
+        const handlerRef = { current: handler };
+        const wrapper = (e: Event) => handlerRef.current((e as CustomEvent<T>).detail);
         window.addEventListener(fullKey, wrapper);
-        return () => window.removeEventListener(fullKey, wrapper);
+        return () => {
+            window.removeEventListener(fullKey, wrapper);
+        };
     }, [fullKey]);
 
     const listenOnce = useCallback((handler: Callback<T>) => {
         if (!isBrowser) return () => {};
+        let removed = false;
         const wrapper = (e: Event) => {
+            if (removed) return;
+            removed = true;
             handler((e as CustomEvent<T>).detail);
             window.removeEventListener(fullKey, wrapper);
         };
         window.addEventListener(fullKey, wrapper);
-        return () => window.removeEventListener(fullKey, wrapper);
+        return () => {
+            if (!removed) {
+                removed = true;
+                window.removeEventListener(fullKey, wrapper);
+            }
+        };
     }, [fullKey]);
 
     return { emit, emitOnce, emitDebounced, listen, listenOnce, resetOnce };
@@ -142,6 +166,7 @@ export function useReactEvent<
 /**
  * Auto-subscribing listener hook — eliminates the useEffect boilerplate.
  * Automatically subscribes on mount and unsubscribes on unmount.
+ * Uses a ref internally so the latest handler is always called (no stale closures).
  *
  * @example
  * ```tsx
@@ -156,7 +181,7 @@ export function useEventListener<
 >(
     eventKey: K,
     handler: Callback<K extends keyof Map ? PayloadOf<Map, K> : any>,
-    options?: UseReactEventOptions
+    options?: UseEventListenerOptions
 ) {
     const handlerRef = useRef(handler);
     handlerRef.current = handler;
