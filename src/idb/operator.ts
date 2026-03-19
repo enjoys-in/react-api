@@ -6,10 +6,15 @@ export const anyOf = <T>(value: T[]) => ({ op: 'anyOf', value } as const);
 export const above = <T>(value: T) => ({ op: 'above', value } as const);
 export const below = <T>(value: T) => ({ op: 'below', value } as const);
 export const between = <T>(range: [T, T]) => ({ op: 'between', value: range } as const);
+export const aboveOrEqual = <T>(value: T) => ({ op: 'aboveOrEqual', value } as const);
+export const belowOrEqual = <T>(value: T) => ({ op: 'belowOrEqual', value } as const);
+export const noneOf = <T>(value: T[]) => ({ op: 'noneOf', value } as const);
+export const inAnyRange = <T>(ranges: [T, T][]) => ({ op: 'inAnyRange', value: ranges } as const);
+export const startsWithAnyOf = (value: string[]) => ({ op: 'startsWithAnyOf', value } as const);
 export const $gt = above;
 export const $lt = below;
-export const $gte = <T>(value: T) => ({ op: 'gte', value } as const);
-export const $lte = <T>(value: T) => ({ op: 'lte', value } as const);
+export const $gte = aboveOrEqual;
+export const $lte = belowOrEqual;
 export type Operator<T> =
   | ReturnType<typeof equals<T>>
   | ReturnType<typeof notEqual<T>>
@@ -18,7 +23,8 @@ export type Operator<T> =
   | ReturnType<typeof above<T>>
   | ReturnType<typeof below<T>>
   | ReturnType<typeof between<T>>
-  | ReturnType<typeof $gt<T>>
-  | ReturnType<typeof $lt<T>> 
-  | ReturnType<typeof $gte<T>>
-  | ReturnType<typeof $lte<T>>
+  | ReturnType<typeof aboveOrEqual<T>>
+  | ReturnType<typeof belowOrEqual<T>>
+  | ReturnType<typeof noneOf<T>>
+  | ReturnType<typeof inAnyRange<T>>
+  | ReturnType<typeof startsWithAnyOf>

@@ -1,4 +1,5 @@
 import { Operator } from "../operator";
+import { NestedKeys, PathValue } from "./idb.interface";
 
 export type OperatorType =
   | 'equals'
@@ -8,12 +9,15 @@ export type OperatorType =
   | 'above'
   | 'below'
   | 'between'
-  | 'gte'
-  | 'lte';
+  | 'aboveOrEqual'
+  | 'belowOrEqual'
+  | 'noneOf'
+  | 'inAnyRange'
+  | 'startsWithAnyOf';
 
 export type BaseOperator<T> = {
   op: OperatorType;
-  value: T | T[] | [T, T];
+  value: T | T[] | [T, T] | [T, T][];
 };
 
 export type DotPaths<T, Prefix extends string = ''> = {
@@ -24,18 +28,20 @@ export type DotPaths<T, Prefix extends string = ''> = {
 export type SelectableFields<Main, Joins extends Record<string, any>> =
   keyof Main | DotPaths<Joins>;
 
-export type SmartWhere<T> = Partial<{
-  [K in keyof T]?: Operator<T[K]> | { [key: string]: T[K] };
-}>;
+export type SmartWhere<T> = {
+  [K in NestedKeys<T>]?: Operator<PathValue<T, K>>;
+};
 
 export type JoinConfig<
   LocalTable,
   ForeignTable,
   LocalKey extends keyof LocalTable,
-  ForeignKey extends keyof ForeignTable
+  ForeignKey extends keyof ForeignTable,
+  StoreName extends string = string,
+  Alias extends string = string
 > = {
-  store: string;         // Store name to join with
-  localKey: LocalKey;    // Key in local table
-  foreignKey: ForeignKey;// Key in joined table
-  as: string;            // Alias for joined object
+  store: StoreName;
+  localKey: LocalKey;
+  foreignKey: ForeignKey;
+  as: Alias;
 };

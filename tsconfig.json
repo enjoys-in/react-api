@@ -7,10 +7,10 @@
     "target": "es2020",
 
     /* Output */
+    "rootDir": "./src",
     "declaration": true,             // Generate .d.ts files
     "declarationDir": "dist",
-    "emitDeclarationOnly": true,     // Skip JS build during DTS build
-    "outDir": "dist",                // Where tsup should also output
+    "outDir": "dist",
     "removeComments": true,
 
     /* React/JSX support */

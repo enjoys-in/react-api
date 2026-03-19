@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import { Operator } from './operator';
-import { SmartWhere, JoinConfig, DotPaths, SelectableFields } from './types/orm.interface';
+import { SmartWhere, JoinConfig, OperatorType, DotPaths, SelectableFields } from './types/orm.interface';
+import { NestedKeys, PathValue } from './types/idb.interface';
 
 
 type Row<Tables, TName extends keyof Tables> =
@@ -20,9 +21,9 @@ export class QueryBuilder<
 
     private _limit?: number;
     private _offset?: number;
-    private _orderBy?: keyof Row<Tables, TableName>;
+    private _orderBy?: NestedKeys<Row<Tables, TableName>>;
     private _select?: (keyof Row<Tables, TableName>)[];
-    private whereClauses: { field: keyof Row<Tables, TableName>; op: string; value: any }[] = [];
+    private whereClauses: { field: NestedKeys<Row<Tables, TableName>>; op: OperatorType; value: any }[] = [];
     private orClauses: SmartWhere<Row<Tables, TableName>>[] = [];
     private joinConfigs: JoinConfig<Row<Tables, TableName>, any, any, any>[] = [];
 
@@ -45,9 +46,9 @@ export class QueryBuilder<
      */
     where(conditions: SmartWhere<Row<Tables, TableName>>) {
         for (const key in conditions) {
-            const clause = conditions[key as keyof Row<Tables, TableName>] as Operator<any>;
+            const clause = conditions[key as NestedKeys<Row<Tables, TableName>>] as Operator<any>;
             if (clause) {
-                this.whereClauses.push({ field: key as keyof Row<Tables, TableName>, op: clause.op, value: clause.value });
+                this.whereClauses.push({ field: key as NestedKeys<Row<Tables, TableName>>, op: clause.op, value: clause.value });
             }
         }
         return this;
@@ -157,7 +158,7 @@ export class QueryBuilder<
      * @param field - The field of the table to order the results by.
      * @returns The current QueryBuilder instance for method chaining.
      */
-    orderBy(field: keyof Row<Tables, TableName>) {
+    orderBy(field: NestedKeys<Row<Tables, TableName>>) {
         this._orderBy = field;
         return this;
     }
@@ -181,8 +182,12 @@ export class QueryBuilder<
      *
      * @returns A promise that resolves to an array of items from the specified table.
      */
-    private matchesClause(item: Row<Tables, TableName>, field: keyof Row<Tables, TableName>, op: string, value: any): boolean {
-        const val = item[field];
+    private getDeepValue(obj: any, path: string): any {
+        return path.split('.').reduce((acc, key) => acc?.[key], obj);
+    }
+
+    private matchesClause(item: Row<Tables, TableName>, field: NestedKeys<Row<Tables, TableName>>, op: OperatorType, value: any): boolean {
+        const val = this.getDeepValue(item, field as string);
         switch (op) {
             case 'equals': return val === value;
             case 'notEqual': return val !== value;
@@ -190,15 +195,18 @@ export class QueryBuilder<
             case 'anyOf': return Array.isArray(value) && value.includes(val);
             case 'above': return val > value;
             case 'below': return val < value;
-            case 'gte': return val >= value;
-            case 'lte': return val <= value;
+            case 'aboveOrEqual': return val >= value;
+            case 'belowOrEqual': return val <= value;
             case 'between': return Array.isArray(value) && val >= value[0] && val <= value[1];
+            case 'noneOf': return Array.isArray(value) && !value.includes(val);
+            case 'inAnyRange': return Array.isArray(value) && value.some((range: [any, any]) => val >= range[0] && val <= range[1]);
+            case 'startsWithAnyOf': return typeof val === 'string' && Array.isArray(value) && value.some((prefix: string) => val.startsWith(prefix));
             default: return true;
         }
     }
 
     private matchesOperator(item: Row<Tables, TableName>, field: string, clause: Operator<any>): boolean {
-        return this.matchesClause(item, field as keyof Row<Tables, TableName>, clause.op, clause.value);
+        return this.matchesClause(item, field as NestedKeys<Row<Tables, TableName>>, clause.op, clause.value);
     }
 
     async findMany(): Promise<Row<Tables, TableName>[]> {
@@ -223,7 +231,7 @@ export class QueryBuilder<
             });
         }
 
-        if (this._orderBy) results = results.sort((a, b) => (a[this._orderBy!] > b[this._orderBy!] ? 1 : -1));
+        if (this._orderBy) results = results.sort((a, b) => (this.getDeepValue(a, this._orderBy! as string) > this.getDeepValue(b, this._orderBy! as string) ? 1 : -1));
         if (this._offset) results = results.slice(this._offset);
         if (this._limit) results = results.slice(0, this._limit);
 

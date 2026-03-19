@@ -1,37 +1,89 @@
 import { type EntityTable, InsertType, Table } from "dexie";
-type FlatKeys<T> = {
-    [K in keyof T]: T[K] extends object
-    ? T[K] extends Array<any>
-    ? never
-    : K
-    : K;
-}[keyof T] &
-    string;
 
-type CommaString<PK extends string, Extras extends string> =
-    | `++${PK}`
-    | `++${PK},${Extras}`;
-
+/**
+ * Extracts the primary key property name from a Table/EntityTable type.
+ * Works with EntityTable<T, PK> which internally uses InsertType<T, PK>.
+ */
 type PrimaryKeyFromTable<T> = T extends Table<
     infer R,
     any,
     InsertType<infer R2, infer PK>
 >
     ? R extends R2
-    ? PK
+    ? PK & string
     : never
     : never;
 
+/** Deterministically picks one element from a union to iterate without distribution. */
+type LastInUnion<U> =
+    UnionToIntersection<U extends any ? () => U : never> extends () => infer Last
+    ? Last
+    : never;
+
+/**
+ * Generates all non-empty subsets of a string union as comma-separated strings.
+ * Each subset appears exactly once — no duplicate orderings.
+ * Depth-limited to prevent type explosion on wide schemas.
+ *
+ * Example: FieldCombinations<'a' | 'b' | 'c'>
+ *   = 'a' | 'b' | 'c' | 'a,b' | 'a,c' | 'b,c' | 'a,b,c'
+ */
+type FieldCombinations<
+    T extends string,
+    Depth extends any[] = []
+> = [T] extends [never]
+    ? never
+    : Depth['length'] extends 4
+    ? T
+    : LastInUnion<T> extends infer Head extends string
+    ? Exclude<T, Head> extends infer Rest
+    ? [Rest] extends [never]
+    ? Head
+    : Rest extends string
+    ? Head
+    | FieldCombinations<Rest, Depth>
+    | `${Head},${FieldCombinations<Rest, [...Depth, 0]>}`
+    : Head
+    : Head
+    : never;
+
+/**
+ * Builds the schema string type for a Dexie table.
+ * The primary key can be prefixed with ++ (auto-increment) or used as-is.
+ * Remaining fields are suggested via autocomplete as comma-separated values.
+ */
+type IndexSchemaString<PK extends string, OtherFields extends string> =
+    [OtherFields] extends [never]
+    ? `++${PK}` | PK
+    : | `++${PK}`
+    | PK
+    | `++${PK},${FieldCombinations<OtherFields>}`
+    | `${PK},${FieldCombinations<OtherFields>}`;
+
+/**
+ * Resolves the schema string type for a single table entry.
+ * If the table is an EntityTable (with InsertType), it provides full
+ * autocomplete for the PK and all other fields.
+ * Falls back to `string` for plain Table<> without a named PK.
+ */
+type TableSchemaString<T> = T extends Table<
+    infer Entity,
+    any,
+    InsertType<infer _R, infer PK>
+>
+    ? _R extends Entity
+    ? PK extends string
+    ? IndexSchemaString<PK, Exclude<keyof Entity & string, PK>>
+    : string
+    : string
+    : string;
+
+/**
+ * @deprecated Use {@link TableSchema} instead. Kept for backward compatibility.
+ */
 export type CreatePKTableSchema<
     T extends Record<string, Table<any, any, any>>
-> = {
-        [K in keyof T]: T[K] extends Table<infer R, any, any>
-        ? CommaString<
-            PrimaryKeyFromTable<T[K]>,
-            Exclude<FlatKeys<R>, PrimaryKeyFromTable<T[K]>>
-        >
-        : never;
-    };
+> = TableSchema<T>;
 
 export type SchemaForTables<
     TSchemas extends Record<string, any>,
@@ -41,7 +93,20 @@ export type SchemaForTables<
     };
 
 export type TableValue<T> = T extends Table<infer U, any> ? U : never;
-type QueryOperator = "equals" | "anyOf" | "above" | "below" | "between";
+export type TableInsertType<T> = T extends Table<any, any, infer I> ? I : never;
+export type QueryOperator =
+    | "equals"
+    | "anyOf"
+    | "above"
+    | "below"
+    | "between"
+    | "aboveOrEqual"
+    | "belowOrEqual"
+    | "noneOf"
+    | "notEqual"
+    | "startsWith"
+    | "startsWithAnyOf"
+    | "inAnyRange";
 export type PrimaryKeyType<
     Tables,
     T extends keyof Tables
@@ -168,9 +233,8 @@ type DeepValue<T, Parts extends string[]> = Parts extends [
 
 export type PathValue<T, P extends string> = DeepValue<T, Split<P>>;
 
-type TableKeys<T> = keyof T;
 export type TableSchema<T> = {
-    [tableName in TableKeys<T>]: string;
+    [K in keyof T]: TableSchemaString<T[K]>;
 };
 export type UpdatesForTable<T> = {
     [K in NestedKeys<T>]?: PathValue<T, K>;
@@ -187,19 +251,21 @@ export type FieldType<
 > = PathValue<Tables[T], P>;
 
 export type QueryWhere<Tables, K extends keyof Tables> = {
-    field: keyof Tables[K];
-    operator?: QueryOperator;
-    value: any;
-};
+    [F in NestedKeys<TableValue<Tables[K]>>]: {
+        field: F;
+        operator?: QueryOperator;
+        value: PathValue<TableValue<Tables[K]>, F> | PathValue<TableValue<Tables[K]>, F>[];
+    };
+}[NestedKeys<TableValue<Tables[K]>>];
 
 export type QueryOptions<Tables, K extends keyof Tables> = {
     where?: QueryWhere<Tables, K>;
-    sortBy?: keyof Tables[K];
+    sortBy?: NestedKeys<TableValue<Tables[K]>>;
     offset?: number;
     limit?: number;
     reverse?: boolean;
     count?: boolean;
-    each?: (item: Tables[K]) => void;
+    each?: (item: TableValue<Tables[K]>) => void;
     primaryKeys?: boolean;
     raw?: boolean;
 };
@@ -207,12 +273,12 @@ export type QueryOptions<Tables, K extends keyof Tables> = {
 // ---- Change Log for Generic Tables ----
 
 export interface IDatabaseChange<Tables = Record<string, any>> {
-    source: any;
+    source: unknown;
     table: keyof Tables;
-    key: string;
-    type: number;
-    mods: Partial<Tables[keyof Tables]>; // updated fields
-    oldObj: Tables[keyof Tables]; // old object
-    obj: Tables[keyof Tables]; // new object
+    key: PrimaryKeyType<Tables, keyof Tables>;
+    type: 1 | 2 | 3;
+    mods: Partial<TableValue<Tables[keyof Tables]>>;
+    oldObj: TableValue<Tables[keyof Tables]>;
+    obj: TableValue<Tables[keyof Tables]>;
     rev: number;
 }

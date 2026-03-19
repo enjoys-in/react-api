@@ -9,7 +9,9 @@ import {
     NestedKeys,
     PathValue,
     PrimaryKeyType,
+    QueryOperator,
     QueryOptions,
+    TableInsertType,
     TableSchema,
     TableValue,
     UpdatesForTable,
@@ -60,8 +62,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * @param tableName - The name of the table for which to retrieve the primary key.
      * @returns The primary key field name for the specified table.
      */
-    private getPrimaryKeyForTable(tableName: keyof TableSchema<Table>): string {
-        const schema = this.tables[tableName];
+    private getPrimaryKeyForTable(tableName: keyof Tables): string {
+        const schema = this.tables[tableName as keyof TableSchema<Tables>];
         const keys = schema.split(",").map((key) => key.trim());
         const primaryKey = keys[0].replace(/^\+\+/, '');
         return primaryKey;
@@ -154,8 +156,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * Note that this function is private and should not be called directly.
      */
-    private getTable<K extends keyof Tables>(tableName: K) {
-        return this.db.table(tableName as string);
+    private getTable<K extends keyof Tables>(tableName: K): Table<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>> {
+        return this.db.table(tableName as string) as unknown as Table<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
     }
 
     /**
@@ -172,9 +174,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async addItem<K extends keyof Tables>(
         table: K,
-        item: Partial<TableValue<Tables[K]>>
-    ) {
-        return this.getTable(table).add(item);
+        item: TableInsertType<Tables[K]>
+    ): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).add(item as TableValue<Tables[K]>) as Promise<PrimaryKeyType<Tables, K>>;
     }
 
     /**
@@ -188,9 +190,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async bulkAddItems<K extends keyof Tables>(
         table: K,
-        items: TableValue<Tables[K]>[]
-    ) {
-        return this.getTable(table).bulkAdd(items);
+        items: TableInsertType<Tables[K]>[]
+    ): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).bulkAdd(items as TableValue<Tables[K]>[]) as Promise<PrimaryKeyType<Tables, K>>;
     }
 
     /**
@@ -205,9 +207,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async putItem<K extends keyof Tables>(
         table: K,
-        item: Partial<TableValue<Tables[K]>>
-    ) {
-        return this.getTable(table).put(item);
+        item: TableInsertType<Tables[K]>
+    ): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).put(item as TableValue<Tables[K]>) as Promise<PrimaryKeyType<Tables, K>>;
     }
     /**
      * Adds or updates multiple items in the specified table in a single transaction.
@@ -219,10 +221,28 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns The number of items added or updated.
      */
-    async bulkPutItems<K extends keyof Tables>(table: K, item: Tables[K][]) {
-        return this.getTable(table).bulkPut(item);
+    async bulkPutItems<K extends keyof Tables>(table: K, items: TableValue<Tables[K]>[]): Promise<PrimaryKeyType<Tables, K>> {
+        return this.getTable(table).bulkPut(items) as Promise<PrimaryKeyType<Tables, K>>;
     }
     // 🟢 Read
+
+    /**
+     * Retrieves multiple items from the specified table by their primary keys.
+     * Per Dexie docs: Table.bulkGet(keys) - returns an array where each position
+     * corresponds to the key at the same position in the input array.
+     * Items not found will be undefined at their position.
+     *
+     * @param table - The name of the table to retrieve items from.
+     * @param keys - An array of primary keys to look up.
+     *
+     * @returns An array of items (or undefined) corresponding to the given keys.
+     */
+    async bulkGet<K extends keyof Tables>(
+        table: K,
+        keys: PrimaryKeyType<Tables, K>[]
+    ): Promise<(TableValue<Tables[K]> | undefined)[]> {
+        return this.getTable(table).bulkGet(keys);
+    }
 
     /**
      * Retrieves an item from the specified table by its primary key.
@@ -236,7 +256,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         value: PrimaryKeyType<Tables, K>
     ): Promise<TableValue<Tables[K]> | undefined> {
-        return this.getTable(table).get(value as any);
+        return this.getTable(table).get(value);
     }
 
     /**
@@ -249,7 +269,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async getAllItems<K extends keyof Tables>(
         table: K,
-        sortBy?: keyof TableValue<Tables[K]>
+        sortBy?: NestedKeys<TableValue<Tables[K]>>
     ): Promise<Array<TableValue<Tables[K]>>> {
         if (sortBy) {
             return this.getTable(table).orderBy(sortBy as string).toArray();
@@ -266,14 +286,14 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns An array of items from the specified table, sorted in reverse order by the given field, or undefined if no items were found.
      */
-    async getItemsByIndex<K extends keyof Tables>(
+    async getItemsByIndex<K extends keyof Tables, F extends NestedKeys<TableValue<Tables[K]>>>(
         table: K,
-        where: keyof TableValue<Tables[K]>,
-        equals: string,
+        where: F,
+        equals: PathValue<TableValue<Tables[K]>, F>,
         limit: number = 10
     ): Promise<Array<TableValue<Tables[K]>> | undefined> {
         return this.getTable<K>(table)
-            .where(where as unknown as string)
+            .where(where as string)
             .equals(equals)
             .reverse()
             .limit(limit)
@@ -293,7 +313,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         offset: number,
         limit: number
-    ) {
+    ): Promise<TableValue<Tables[K]>[]> {
         return this.getTable(table).offset(offset).limit(limit).toArray();
     }
     /**
@@ -318,6 +338,11 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * - `primaryKeys`: Whether to return only the primary keys of the items in the query result.
      * - `raw`: Whether to return the raw Dexie collection object instead of the query result.
      */
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { count: true }): Promise<number>;
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { raw: true }): Promise<Dexie.Collection<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>>;
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { primaryKeys: true }): Promise<PrimaryKeyType<Tables, K>[]>;
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { each: (item: TableValue<Tables[K]>) => void }): Promise<void>;
+    query<K extends keyof Tables>(table: K, options?: QueryOptions<Tables, K>): Promise<TableValue<Tables[K]>[]>;
     async query<K extends keyof Tables>(
         table: K,
         options: QueryOptions<Tables, K> = {}
@@ -335,24 +360,33 @@ export class IDB<Tables extends { [key: string]: Table }> {
         } = options;
 
         const tableRef = this.getTable<K>(table);
-        let collection: Dexie.Collection<Tables[K], any>;
+        let collection: Dexie.Collection<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
 
         // Apply where clause if present
         if (where) {
             const { field, operator = "equals", value } = where;
-            const clause = tableRef.where(field as any);
+            const clause = tableRef.where(field as string);
             switch (operator) {
                 case "equals":
                     collection = clause.equals(value);
                     break;
+                case "notEqual":
+                    collection = clause.notEqual(value);
+                    break;
                 case "anyOf":
-                    collection = clause.anyOf(value);
+                    collection = clause.anyOf(value as any[]);
                     break;
                 case "above":
                     collection = clause.above(value);
                     break;
+                case "aboveOrEqual":
+                    collection = clause.aboveOrEqual(value);
+                    break;
                 case "below":
                     collection = clause.below(value);
+                    break;
+                case "belowOrEqual":
+                    collection = clause.belowOrEqual(value);
                     break;
                 case "between":
                     if (Array.isArray(value) && value.length === 2) {
@@ -361,8 +395,21 @@ export class IDB<Tables extends { [key: string]: Table }> {
                         throw new Error("Value for 'between' must be a 2-element array");
                     }
                     break;
+                case "noneOf":
+                    collection = clause.noneOf(value as any[]);
+                    break;
+                case "startsWith":
+                    collection = clause.startsWith(value as string);
+                    break;
+                case "startsWithAnyOf":
+                    collection = clause.startsWithAnyOf(value as string[]);
+                    break;
+                case "inAnyRange":
+                    collection = clause.inAnyRange(value as [any, any][]);
+                    break;
                 default:
-                    throw new Error(`Unsupported operator: ${operator}`);
+                    const _exhaustive: never = operator;
+                    throw new Error(`Unsupported operator: ${_exhaustive}`);
             }
         } else {
             collection = tableRef.toCollection();
@@ -417,9 +464,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
     async updateItem<K extends keyof Tables>(
         table: K,
         field_value: PrimaryKeyType<Tables, K>,
-        updated: Partial<TableValue<Tables[K]>>
-    ) {
-        return this.getTable(table).update(field_value as any, updated);
+        updated: UpdatesForTable<TableValue<Tables[K]>>
+    ): Promise<number> {
+        return this.getTable(table).update(field_value, updated as any);
     }
 
     // 🔴 Delete
@@ -432,8 +479,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns A promise that resolves once the item has been deleted.
      */
-    async deleteItem<K extends keyof Tables>(table: K, field_value: PrimaryKeyType<Tables, K>) {
-        return this.getTable(table).delete(field_value as any);
+    async deleteItem<K extends keyof Tables>(table: K, field_value: PrimaryKeyType<Tables, K>): Promise<void> {
+        return this.getTable(table).delete(field_value);
     }
 
     /**
@@ -444,8 +491,48 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns A promise that resolves once the items have been deleted.
      */
-    async bulkDeleteItems<K extends keyof Tables>(table: K, keys: PrimaryKeyType<Tables, K>[]) {
-        return this.getTable(table).bulkDelete(keys as any[]);
+    async bulkDeleteItems<K extends keyof Tables>(table: K, keys: PrimaryKeyType<Tables, K>[]): Promise<void> {
+        return this.getTable(table).bulkDelete(keys);
+    }
+
+    /**
+     * Clears all items from the specified table.
+     * Per Dexie docs: Table.clear() - clears all objects in the store.
+     *
+     * @param table - The name of the table to clear.
+     * @returns A promise that resolves once the table has been cleared.
+     */
+    async clearTable<K extends keyof Tables>(table: K): Promise<void> {
+        return this.getTable(table).clear();
+    }
+
+    /**
+     * Counts all items in the specified table.
+     * Per Dexie docs: Table.count() - count all objects.
+     *
+     * @param table - The name of the table to count.
+     * @returns A promise resolving to the number of items in the table.
+     */
+    async countItems<K extends keyof Tables>(table: K): Promise<number> {
+        return this.getTable(table).count();
+    }
+
+    /**
+     * Executes a strongly-typed transaction across one or more tables.
+     * Per Dexie docs: Dexie.transaction(mode, tables, callback) - atomic operations.
+     *
+     * @param mode - The transaction mode: 'r' for readonly, 'rw' for readwrite.
+     * @param tables - An array of table names to include in the transaction.
+     * @param callback - The function to execute within the transaction scope.
+     * @returns A promise resolving to the return value of the callback.
+     */
+    async transaction<R>(
+        mode: 'r' | 'rw',
+        tables: (keyof Tables)[],
+        callback: () => Promise<R>
+    ): Promise<R> {
+        const tableRefs = tables.map(t => this.db.table(t as string));
+        return this.db.transaction(mode, tableRefs, callback);
     }
 
     /**
@@ -462,16 +549,16 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async pruneOldItems<K extends keyof Tables>(
         table: K,
-        keyField: keyof Tables[K],
+        keyField: keyof TableValue<Tables[K]>,
         maxLimit = 50
-    ) {
-        const items = (await this.getAllItems<K>(table)) as any[];
+    ): Promise<void> {
+        const items = await this.getAllItems<K>(table);
 
         if (items.length > maxLimit) {
             const oldest = items.slice(0, items.length - maxLimit);
             await this.bulkDeleteItems(
                 table,
-                oldest.map((item) => item[keyField])
+                oldest.map((item) => item[keyField] as PrimaryKeyType<Tables, K>)
             );
         }
     }
@@ -574,7 +661,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         P extends NestedKeys<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKey: string | number,
+        primaryKey: PrimaryKeyType<Tables, T>,
         paths: P[]
     ): Promise<{
         paths: P[];
