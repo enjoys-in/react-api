@@ -109,6 +109,7 @@ function Receiver() {
 | IndexedDB | [IDB Documentation](./src/docs/idb.md) |
 | Cache Storage | [Cache Storage Documentation](./src/docs/cache-storage.md) |
 | Events | [Events Documentation](./src/docs/events.md) |
+| OFS (File System) | [OFS Documentation](./src/docs/ofs.md) |
 
 ---
 
