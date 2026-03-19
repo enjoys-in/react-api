@@ -269,7 +269,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async getAllItems<K extends keyof Tables>(
         table: K,
-        sortBy?: keyof TableValue<Tables[K]>
+        sortBy?: NestedKeys<TableValue<Tables[K]>>
     ): Promise<Array<TableValue<Tables[K]>>> {
         if (sortBy) {
             return this.getTable(table).orderBy(sortBy as string).toArray();
@@ -286,14 +286,14 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns An array of items from the specified table, sorted in reverse order by the given field, or undefined if no items were found.
      */
-    async getItemsByIndex<K extends keyof Tables, F extends keyof TableValue<Tables[K]>>(
+    async getItemsByIndex<K extends keyof Tables, F extends NestedKeys<TableValue<Tables[K]>>>(
         table: K,
         where: F,
-        equals: TableValue<Tables[K]>[F],
+        equals: PathValue<TableValue<Tables[K]>, F>,
         limit: number = 10
     ): Promise<Array<TableValue<Tables[K]>> | undefined> {
         return this.getTable<K>(table)
-            .where(where as unknown as string)
+            .where(where as string)
             .equals(equals)
             .reverse()
             .limit(limit)
@@ -464,9 +464,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
     async updateItem<K extends keyof Tables>(
         table: K,
         field_value: PrimaryKeyType<Tables, K>,
-        updated: Partial<TableValue<Tables[K]>>
+        updated: UpdatesForTable<TableValue<Tables[K]>>
     ): Promise<number> {
-        return this.getTable(table).update(field_value, updated);
+        return this.getTable(table).update(field_value, updated as any);
     }
 
     // 🔴 Delete

@@ -1,4 +1,5 @@
 import { Operator } from "../operator";
+import { NestedKeys, PathValue } from "./idb.interface";
 
 export type OperatorType =
   | 'equals'
@@ -28,7 +29,7 @@ export type SelectableFields<Main, Joins extends Record<string, any>> =
   keyof Main | DotPaths<Joins>;
 
 export type SmartWhere<T> = {
-  [K in keyof T]?: Operator<T[K]>;
+  [K in NestedKeys<T>]?: Operator<PathValue<T, K>>;
 };
 
 export type JoinConfig<

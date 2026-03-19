@@ -200,16 +200,16 @@ export type FieldType<
 > = PathValue<Tables[T], P>;
 
 export type QueryWhere<Tables, K extends keyof Tables> = {
-    [F in keyof TableValue<Tables[K]>]: {
+    [F in NestedKeys<TableValue<Tables[K]>>]: {
         field: F;
         operator?: QueryOperator;
-        value: TableValue<Tables[K]>[F] | TableValue<Tables[K]>[F][];
+        value: PathValue<TableValue<Tables[K]>, F> | PathValue<TableValue<Tables[K]>, F>[];
     };
-}[keyof TableValue<Tables[K]>];
+}[NestedKeys<TableValue<Tables[K]>>];
 
 export type QueryOptions<Tables, K extends keyof Tables> = {
     where?: QueryWhere<Tables, K>;
-    sortBy?: keyof TableValue<Tables[K]>;
+    sortBy?: NestedKeys<TableValue<Tables[K]>>;
     offset?: number;
     limit?: number;
     reverse?: boolean;
