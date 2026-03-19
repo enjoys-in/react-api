@@ -15,6 +15,7 @@ A React hook and manager class for the [File System Access API](https://develope
 - **Directory size** — `getDirectorySize()` calculates total bytes recursively
 - **SSR-safe** — throws a clear error if called outside a browser environment
 - **Safe writes** — writable streams are always closed, even on error
+- **Strongly typed** — exported `UseOFSReturn` interface for typed props and context
 - **React hook** — `useOFS()` with `ready` and `error` state
 - **Permission check** — `isAllowed()` and `checkPermission()`
 
@@ -69,9 +70,10 @@ function FileManager() {
 
 ## API Reference
 
-### `useOFS()`
+### `useOFS(): UseOFSReturn`
 
 React hook that creates an `OFSManager` instance and tracks readiness.
+Returns the strongly-typed `UseOFSReturn` interface.
 
 | Return | Type | Description |
 |---|---|---|
@@ -269,7 +271,7 @@ console.log(users);
 ## Exported Types
 
 ```tsx
-import type { FileInfo, ListEntry, WriteData } from '@enjoys/react-api/ofs';
+import type { FileInfo, ListEntry, WriteData, UseOFSReturn } from '@enjoys/react-api/ofs';
 ```
 
 | Type | Description |
@@ -277,6 +279,32 @@ import type { FileInfo, ListEntry, WriteData } from '@enjoys/react-api/ofs';
 | `FileInfo` | `{ name: string; size: number; type: string; lastModified: number }` |
 | `ListEntry` | `{ name: string; kind: 'file' \| 'directory' }` |
 | `WriteData` | `string \| Blob \| BufferSource` |
+| `UseOFSReturn` | Return type of `useOFS()` — `{ ofs, ready, error, requestAccess, checkPermission }` |
+
+### Using `UseOFSReturn` for Typed Props
+
+```tsx
+import { useOFS } from '@enjoys/react-api/ofs';
+import type { UseOFSReturn } from '@enjoys/react-api/ofs';
+
+// Pass the typed hook return as a prop
+function FileExplorer({ fs }: { fs: UseOFSReturn }) {
+  if (!fs.ready) return <button onClick={fs.requestAccess}>Grant Access</button>;
+
+  return (
+    <div>
+      <button onClick={() => fs.ofs.listFiles().then(console.log)}>List Files</button>
+      {fs.error && <p>{fs.error.message}</p>}
+    </div>
+  );
+}
+
+// Parent component
+function App() {
+  const fs = useOFS();
+  return <FileExplorer fs={fs} />;
+}
+```
 
 ---
 
