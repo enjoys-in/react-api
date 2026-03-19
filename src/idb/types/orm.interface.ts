@@ -8,8 +8,6 @@ export type OperatorType =
   | 'above'
   | 'below'
   | 'between'
-  | 'gt'
-  | 'lt'
   | 'gte'
   | 'lte';
 

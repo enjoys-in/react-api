@@ -216,9 +216,6 @@ export class QueryBuilder<
                         )
                     );
 
-                // If both where and or are specified, item must match where AND at least one or group
-                // If only where: must match where
-                // If only or: must match at least one or group
                 if (this.whereClauses.length && this.orClauses.length) {
                     return matchesWhere && matchesOr;
                 }
@@ -230,6 +227,25 @@ export class QueryBuilder<
         if (this._offset) results = results.slice(this._offset);
         if (this._limit) results = results.slice(0, this._limit);
 
+        // Execute joins
+        if (this.joinConfigs.length) {
+            for (const join of this.joinConfigs) {
+                const foreignTable = (this.db as any)[join.store] as Dexie.Table<any, any>;
+                if (!foreignTable) continue;
+                const foreignRows = await foreignTable.toArray();
+                const foreignMap = new Map<any, any[]>();
+                for (const row of foreignRows) {
+                    const fk = row[join.foreignKey as string];
+                    if (!foreignMap.has(fk)) foreignMap.set(fk, []);
+                    foreignMap.get(fk)!.push(row);
+                }
+                results = results.map(item => ({
+                    ...(item as Record<string, any>),
+                    [join.as]: foreignMap.get((item as any)[join.localKey as string]) ?? [],
+                })) as any;
+            }
+        }
+
         if (this._select) {
             results = results.map(row => {
                 const selected: Partial<Row<Tables, TableName>> = {};
@@ -238,7 +254,21 @@ export class QueryBuilder<
             }) as any;
         }
 
+        this.reset();
         return results as any;
+    }
+
+    /**
+     * Resets the builder state so it can be reused for a new query.
+     */
+    private reset(): void {
+        this._limit = undefined;
+        this._offset = undefined;
+        this._orderBy = undefined;
+        this._select = undefined;
+        this.whereClauses = [];
+        this.orClauses = [];
+        this.joinConfigs = [];
     }
 
     /**

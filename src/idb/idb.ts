@@ -44,7 +44,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * It is not necessary to call it manually.
      */
     private useObservable() {
-        console.log("Observable activated");
+        // Observable plugin loaded
     }
     /**
      * Returns the underlying Dexie database instance.
@@ -118,8 +118,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
                 resolve(db);
             };
 
-            request.onerror = (event) => {
-                reject(`Error opening database: ${event}`);
+            request.onerror = () => {
+                reject(new Error(`Failed to open database: ${dbName}`));
             };
         });
     }
@@ -234,9 +234,9 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async getItemByKey<K extends keyof Tables>(
         table: K,
-        value: string
+        value: PrimaryKeyType<Tables, K>
     ): Promise<TableValue<Tables[K]> | undefined> {
-        return this.getTable(table).get(value);
+        return this.getTable(table).get(value as any);
     }
 
     /**
@@ -249,10 +249,10 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async getAllItems<K extends keyof Tables>(
         table: K,
-        sorted: boolean = false
+        sortBy?: keyof TableValue<Tables[K]>
     ): Promise<Array<TableValue<Tables[K]>>> {
-        if (sorted) {
-            return this.getTable(table).orderBy(':id').toArray();
+        if (sortBy) {
+            return this.getTable(table).orderBy(sortBy as string).toArray();
         }
         return this.getTable(table).toArray();
     }
@@ -416,10 +416,10 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async updateItem<K extends keyof Tables>(
         table: K,
-        field_value: string,
-        updated: TableValue<Tables[K]>
+        field_value: PrimaryKeyType<Tables, K>,
+        updated: Partial<TableValue<Tables[K]>>
     ) {
-        return this.getTable(table).update(field_value, updated);
+        return this.getTable(table).update(field_value as any, updated);
     }
 
     // 🔴 Delete
@@ -432,8 +432,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns A promise that resolves once the item has been deleted.
      */
-    async deleteItem<K extends keyof Tables>(table: K, field_value: any) {
-        return this.getTable(table).delete(field_value);
+    async deleteItem<K extends keyof Tables>(table: K, field_value: PrimaryKeyType<Tables, K>) {
+        return this.getTable(table).delete(field_value as any);
     }
 
     /**
@@ -444,8 +444,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns A promise that resolves once the items have been deleted.
      */
-    async bulkDeleteItems<K extends keyof Tables>(table: K, keys: any[]) {
-        return this.getTable(table).bulkDelete(keys);
+    async bulkDeleteItems<K extends keyof Tables>(table: K, keys: PrimaryKeyType<Tables, K>[]) {
+        return this.getTable(table).bulkDelete(keys as any[]);
     }
 
     /**
@@ -686,7 +686,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
             updatedPaths.push(path);
         }
 
-        await table.put({ ...record, updatedAt: Date.now() });
+        await table.put(record);
 
         return { success: true, created, updatedPaths, updates, oldValues };
     }
@@ -743,7 +743,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         const oldValue = obj[finalKey];
         obj[finalKey] = value;
 
-        await table.put({ ...record, updatedAt: Date.now() });
+        await table.put(record);
 
         return { success: true, path, oldValue, newValue: value };
     }
@@ -804,7 +804,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
             updatedPaths.push(path);
         }
 
-        await table.put({ ...record, updatedAt: Date.now() });
+        await table.put(record);
 
         return {
             success: true,
@@ -861,7 +861,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
 
         if (finalKey in obj) {
             delete obj[finalKey];
-            await table.put({ ...record, updatedAt: Date.now() });
+            await table.put(record);
             return { success: true, path, deletedValue };
         }
 
