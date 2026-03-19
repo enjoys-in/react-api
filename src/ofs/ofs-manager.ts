@@ -12,6 +12,8 @@ export interface ListEntry {
 
 export type WriteData = string | Blob | BufferSource;
 
+const isBrowser = typeof window !== 'undefined';
+
 export class OFSManager {
     private rootHandle: FileSystemDirectoryHandle | null = null;
 
@@ -29,6 +31,7 @@ export class OFSManager {
      * Must be called before performing any file operations.
      */
     async requestAccess(): Promise<void> {
+        if (!isBrowser) throw new Error("OFS requires a browser environment.");
         this.rootHandle = await window.showDirectoryPicker();
     }
 
@@ -124,8 +127,11 @@ export class OFSManager {
     async writeFile(path: string, contents: WriteData): Promise<void> {
         const fileHandle = await this.getFileHandle(path, true);
         const writable = await fileHandle.createWritable();
-        await writable.write(contents);
-        await writable.close();
+        try {
+            await writable.write(contents);
+        } finally {
+            await writable.close();
+        }
     }
 
     /**
@@ -134,13 +140,13 @@ export class OFSManager {
     async appendFile(path: string, contents: string | Blob): Promise<void> {
         const fileHandle = await this.getFileHandle(path, true);
         const file = await fileHandle.getFile();
-        const existingContent = await file.text();
-        const newContent = typeof contents === 'string'
-            ? existingContent + contents
-            : new Blob([existingContent, contents]);
+        const merged = new Blob([file, typeof contents === 'string' ? new Blob([contents]) : contents]);
         const writable = await fileHandle.createWritable();
-        await writable.write(newContent);
-        await writable.close();
+        try {
+            await writable.write(merged);
+        } finally {
+            await writable.close();
+        }
     }
 
     /**
@@ -258,6 +264,47 @@ export class OFSManager {
         parts.pop();
         const newPath = [...parts, newName].join('/');
         await this.moveFile(oldPath, newPath);
+    }
+
+    // ─── Stream ──────────────────────────────────────────────────────────
+
+    /**
+     * Reads a file as a ReadableStream. Useful for large files to avoid loading
+     * the entire content into memory.
+     */
+    async readFileAsStream(path: string): Promise<ReadableStream<Uint8Array>> {
+        const fileHandle = await this.getFileHandle(path);
+        const file = await fileHandle.getFile();
+        return file.stream();
+    }
+
+    // ─── Directory Size ──────────────────────────────────────────────────
+
+    /**
+     * Calculates the total size (in bytes) of all files in a directory, recursively.
+     */
+    async getDirectorySize(path?: string): Promise<number> {
+        this.assertInitialized();
+        let dir: FileSystemDirectoryHandle;
+        if (!path || path === '/' || path === '.') {
+            dir = this.rootHandle!;
+        } else {
+            dir = await this.getDirectoryHandle(path);
+        }
+        return this.calculateDirSize(dir);
+    }
+
+    private async calculateDirSize(dir: FileSystemDirectoryHandle): Promise<number> {
+        let total = 0;
+        for await (const [, handle] of (dir as any).entries()) {
+            if (handle.kind === 'file') {
+                const file = await (handle as FileSystemFileHandle).getFile();
+                total += file.size;
+            } else {
+                total += await this.calculateDirSize(handle as FileSystemDirectoryHandle);
+            }
+        }
+        return total;
     }
 
     // ─── Internal Helpers ────────────────────────────────────────────────

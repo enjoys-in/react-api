@@ -11,6 +11,10 @@ A React hook and manager class for the [File System Access API](https://develope
 - **File info** — name, size, type, lastModified
 - **Copy / Move / Rename** — file manipulation operations
 - **Nested paths** — `folder/subfolder/file.txt` supported everywhere
+- **Streaming** — `readFileAsStream()` for large files without loading into memory
+- **Directory size** — `getDirectorySize()` calculates total bytes recursively
+- **SSR-safe** — throws a clear error if called outside a browser environment
+- **Safe writes** — writable streams are always closed, even on error
 - **React hook** — `useOFS()` with `ready` and `error` state
 - **Permission check** — `isAllowed()` and `checkPermission()`
 
@@ -102,6 +106,9 @@ const buffer = await ofs.readFileAsArrayBuffer('data.bin');
 
 // JSON (auto-parsed)
 const config = await ofs.readFileAsJSON<{ port: number }>('config.json');
+
+// ReadableStream (for large files — avoids loading into memory)
+const stream = await ofs.readFileAsStream('large-video.mp4');
 ```
 
 ---
@@ -198,6 +205,19 @@ await ofs.renameFile('src/old-name.ts', 'new-name.ts');
 ```tsx
 const hasFile = await ofs.fileExists('config.json');
 const hasDir = await ofs.directoryExists('src/components');
+```
+
+---
+
+## Directory Size
+
+```tsx
+// Total bytes of all files in a directory (recursive)
+const size = await ofs.getDirectorySize('assets');
+console.log(`Assets folder: ${(size / 1024 / 1024).toFixed(2)} MB`);
+
+// Root directory size
+const totalSize = await ofs.getDirectorySize();
 ```
 
 ---
