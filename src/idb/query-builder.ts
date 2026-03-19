@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 import { Operator } from './operator';
-import { SmartWhere, JoinConfig, DotPaths, SelectableFields } from './types/orm.interface';
+import { SmartWhere, JoinConfig, OperatorType, DotPaths, SelectableFields } from './types/orm.interface';
 
 
 type Row<Tables, TName extends keyof Tables> =
@@ -22,7 +22,7 @@ export class QueryBuilder<
     private _offset?: number;
     private _orderBy?: keyof Row<Tables, TableName>;
     private _select?: (keyof Row<Tables, TableName>)[];
-    private whereClauses: { field: keyof Row<Tables, TableName>; op: string; value: any }[] = [];
+    private whereClauses: { field: keyof Row<Tables, TableName>; op: OperatorType; value: any }[] = [];
     private orClauses: SmartWhere<Row<Tables, TableName>>[] = [];
     private joinConfigs: JoinConfig<Row<Tables, TableName>, any, any, any>[] = [];
 
@@ -181,7 +181,7 @@ export class QueryBuilder<
      *
      * @returns A promise that resolves to an array of items from the specified table.
      */
-    private matchesClause(item: Row<Tables, TableName>, field: keyof Row<Tables, TableName>, op: string, value: any): boolean {
+    private matchesClause(item: Row<Tables, TableName>, field: keyof Row<Tables, TableName>, op: OperatorType, value: any): boolean {
         const val = item[field];
         switch (op) {
             case 'equals': return val === value;

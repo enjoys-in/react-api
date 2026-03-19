@@ -41,6 +41,7 @@ export type SchemaForTables<
     };
 
 export type TableValue<T> = T extends Table<infer U, any> ? U : never;
+export type TableInsertType<T> = T extends Table<any, any, infer I> ? I : never;
 type QueryOperator = "equals" | "anyOf" | "above" | "below" | "between";
 export type PrimaryKeyType<
     Tables,
@@ -187,19 +188,21 @@ export type FieldType<
 > = PathValue<Tables[T], P>;
 
 export type QueryWhere<Tables, K extends keyof Tables> = {
-    field: keyof Tables[K];
-    operator?: QueryOperator;
-    value: any;
-};
+    [F in keyof TableValue<Tables[K]>]: {
+        field: F;
+        operator?: QueryOperator;
+        value: TableValue<Tables[K]>[F] | TableValue<Tables[K]>[F][];
+    };
+}[keyof TableValue<Tables[K]>];
 
 export type QueryOptions<Tables, K extends keyof Tables> = {
     where?: QueryWhere<Tables, K>;
-    sortBy?: keyof Tables[K];
+    sortBy?: keyof TableValue<Tables[K]>;
     offset?: number;
     limit?: number;
     reverse?: boolean;
     count?: boolean;
-    each?: (item: Tables[K]) => void;
+    each?: (item: TableValue<Tables[K]>) => void;
     primaryKeys?: boolean;
     raw?: boolean;
 };
@@ -207,12 +210,12 @@ export type QueryOptions<Tables, K extends keyof Tables> = {
 // ---- Change Log for Generic Tables ----
 
 export interface IDatabaseChange<Tables = Record<string, any>> {
-    source: any;
+    source: unknown;
     table: keyof Tables;
-    key: string;
-    type: number;
-    mods: Partial<Tables[keyof Tables]>; // updated fields
-    oldObj: Tables[keyof Tables]; // old object
-    obj: Tables[keyof Tables]; // new object
+    key: PrimaryKeyType<Tables, keyof Tables>;
+    type: 1 | 2 | 3;
+    mods: Partial<TableValue<Tables[keyof Tables]>>;
+    oldObj: TableValue<Tables[keyof Tables]>;
+    obj: TableValue<Tables[keyof Tables]>;
     rev: number;
 }

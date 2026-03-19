@@ -10,6 +10,7 @@ import {
     PathValue,
     PrimaryKeyType,
     QueryOptions,
+    TableInsertType,
     TableSchema,
     TableValue,
     UpdatesForTable,
@@ -60,8 +61,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * @param tableName - The name of the table for which to retrieve the primary key.
      * @returns The primary key field name for the specified table.
      */
-    private getPrimaryKeyForTable(tableName: keyof TableSchema<Table>): string {
-        const schema = this.tables[tableName];
+    private getPrimaryKeyForTable(tableName: keyof Tables): string {
+        const schema = this.tables[tableName as keyof TableSchema<Tables>];
         const keys = schema.split(",").map((key) => key.trim());
         const primaryKey = keys[0].replace(/^\+\+/, '');
         return primaryKey;
@@ -172,7 +173,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async addItem<K extends keyof Tables>(
         table: K,
-        item: Partial<TableValue<Tables[K]>>
+        item: TableInsertType<Tables[K]>
     ) {
         return this.getTable(table).add(item);
     }
@@ -188,7 +189,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async bulkAddItems<K extends keyof Tables>(
         table: K,
-        items: TableValue<Tables[K]>[]
+        items: TableInsertType<Tables[K]>[]
     ) {
         return this.getTable(table).bulkAdd(items);
     }
@@ -205,7 +206,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async putItem<K extends keyof Tables>(
         table: K,
-        item: Partial<TableValue<Tables[K]>>
+        item: TableInsertType<Tables[K]>
     ) {
         return this.getTable(table).put(item);
     }
@@ -219,8 +220,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns The number of items added or updated.
      */
-    async bulkPutItems<K extends keyof Tables>(table: K, item: Tables[K][]) {
-        return this.getTable(table).bulkPut(item);
+    async bulkPutItems<K extends keyof Tables>(table: K, items: TableValue<Tables[K]>[]) {
+        return this.getTable(table).bulkPut(items);
     }
     // 🟢 Read
 
@@ -266,10 +267,10 @@ export class IDB<Tables extends { [key: string]: Table }> {
      *
      * @returns An array of items from the specified table, sorted in reverse order by the given field, or undefined if no items were found.
      */
-    async getItemsByIndex<K extends keyof Tables>(
+    async getItemsByIndex<K extends keyof Tables, F extends keyof TableValue<Tables[K]>>(
         table: K,
-        where: keyof TableValue<Tables[K]>,
-        equals: string,
+        where: F,
+        equals: TableValue<Tables[K]>[F],
         limit: number = 10
     ): Promise<Array<TableValue<Tables[K]>> | undefined> {
         return this.getTable<K>(table)
@@ -293,7 +294,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         table: K,
         offset: number,
         limit: number
-    ) {
+    ): Promise<TableValue<Tables[K]>[]> {
         return this.getTable(table).offset(offset).limit(limit).toArray();
     }
     /**
@@ -318,6 +319,11 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * - `primaryKeys`: Whether to return only the primary keys of the items in the query result.
      * - `raw`: Whether to return the raw Dexie collection object instead of the query result.
      */
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { count: true }): Promise<number>;
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { raw: true }): Promise<Dexie.Collection<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>>;
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { primaryKeys: true }): Promise<PrimaryKeyType<Tables, K>[]>;
+    query<K extends keyof Tables>(table: K, options: QueryOptions<Tables, K> & { each: (item: TableValue<Tables[K]>) => void }): Promise<void>;
+    query<K extends keyof Tables>(table: K, options?: QueryOptions<Tables, K>): Promise<TableValue<Tables[K]>[]>;
     async query<K extends keyof Tables>(
         table: K,
         options: QueryOptions<Tables, K> = {}
@@ -334,8 +340,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
             raw = false,
         } = options;
 
-        const tableRef = this.getTable<K>(table);
-        let collection: Dexie.Collection<Tables[K], any>;
+        const tableRef = this.getTable<K>(table) as unknown as Table<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
+        let collection: Dexie.Collection<TableValue<Tables[K]>, PrimaryKeyType<Tables, K>>;
 
         // Apply where clause if present
         if (where) {
@@ -462,7 +468,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
      */
     async pruneOldItems<K extends keyof Tables>(
         table: K,
-        keyField: keyof Tables[K],
+        keyField: keyof TableValue<Tables[K]>,
         maxLimit = 50
     ) {
         const items = (await this.getAllItems<K>(table)) as any[];
@@ -574,7 +580,7 @@ export class IDB<Tables extends { [key: string]: Table }> {
         P extends NestedKeys<TableValue<Tables[T]>>
     >(
         tableName: T,
-        primaryKey: string | number,
+        primaryKey: PrimaryKeyType<Tables, T>,
         paths: P[]
     ): Promise<{
         paths: P[];

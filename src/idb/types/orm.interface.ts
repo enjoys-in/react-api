@@ -24,9 +24,9 @@ export type DotPaths<T, Prefix extends string = ''> = {
 export type SelectableFields<Main, Joins extends Record<string, any>> =
   keyof Main | DotPaths<Joins>;
 
-export type SmartWhere<T> = Partial<{
-  [K in keyof T]?: Operator<T[K]> | { [key: string]: T[K] };
-}>;
+export type SmartWhere<T> = {
+  [K in keyof T]?: Operator<T[K]>;
+};
 
 export type JoinConfig<
   LocalTable,
