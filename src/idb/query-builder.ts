@@ -181,47 +181,49 @@ export class QueryBuilder<
      *
      * @returns A promise that resolves to an array of items from the specified table.
      */
+    private matchesClause(item: Row<Tables, TableName>, field: keyof Row<Tables, TableName>, op: string, value: any): boolean {
+        const val = item[field];
+        switch (op) {
+            case 'equals': return val === value;
+            case 'notEqual': return val !== value;
+            case 'startsWith': return typeof val === 'string' && val.startsWith(value);
+            case 'anyOf': return Array.isArray(value) && value.includes(val);
+            case 'above': return val > value;
+            case 'below': return val < value;
+            case 'gte': return val >= value;
+            case 'lte': return val <= value;
+            case 'between': return Array.isArray(value) && val >= value[0] && val <= value[1];
+            default: return true;
+        }
+    }
+
+    private matchesOperator(item: Row<Tables, TableName>, field: string, clause: Operator<any>): boolean {
+        return this.matchesClause(item, field as keyof Row<Tables, TableName>, clause.op, clause.value);
+    }
+
     async findMany(): Promise<Row<Tables, TableName>[]> {
         let results = await this.table.toArray();
-        if (this.whereClauses.length) {
-            results = results.filter(item =>
-                this.whereClauses.every(({ field, op, value }) => {
-                    const val = item[field];
-                    switch (op) {
-                        case 'equals': return val === value;
-                        case 'notEqual': return val !== value;
-                        case 'startsWith': return typeof val === 'string' && val.startsWith(value);
-                        case 'anyOf': return Array.isArray(value) && value.includes(val);
-                        case 'above': return val > value;
-                        case 'below': return val < value;
-                        case 'between': return val >= value[0] && val <= value[1];
-                        default: return true;
-                    }
-                })
-            );
-        }
 
-        if (this.orClauses.length) {
-            results = results.filter(item =>
-                this.orClauses.some(group =>
-                    Object.entries(group).every(([field, clause]) => {
-                        const val = item[field as keyof Row<Tables, TableName>];
-                        switch ((clause as Operator<any>).op) {
-                            case 'equals': return val === (clause as Operator<any>).value;
-                            case 'notEqual': return val !== (clause as Operator<any>).value;
-                            case 'startsWith': return typeof val === 'string' && val.startsWith((clause as Operator<any>).value);
-                            case 'anyOf': return Array.isArray((clause as Operator<any>).value) && (clause as Operator<any>).value.includes(val);
-                            case 'above': return val > (clause as Operator<any>).value;
-                            case 'below': return val < (clause as Operator<any>).value;
-                            case 'between': {
-                                const [low, high] = (clause as Operator<any>).value;
-                                return val >= low && val <= high;
-                            }
-                            default: return false;
-                        }
-                    })
-                )
-            );
+        if (this.whereClauses.length || this.orClauses.length) {
+            results = results.filter(item => {
+                const matchesWhere = this.whereClauses.length === 0 ||
+                    this.whereClauses.every(({ field, op, value }) => this.matchesClause(item, field, op, value));
+
+                const matchesOr = this.orClauses.length === 0 ||
+                    this.orClauses.some(group =>
+                        Object.entries(group).every(([field, clause]) =>
+                            this.matchesOperator(item, field, clause as Operator<any>)
+                        )
+                    );
+
+                // If both where and or are specified, item must match where AND at least one or group
+                // If only where: must match where
+                // If only or: must match at least one or group
+                if (this.whereClauses.length && this.orClauses.length) {
+                    return matchesWhere && matchesOr;
+                }
+                return matchesWhere && matchesOr;
+            });
         }
 
         if (this._orderBy) results = results.sort((a, b) => (a[this._orderBy!] > b[this._orderBy!] ? 1 : -1));
@@ -235,30 +237,7 @@ export class QueryBuilder<
                 return selected;
             }) as any;
         }
-        // if (this._select) {
-        //     results = results.map(row => {
-        //         const selected: Partial<Row<Tables, TableName>> = {};
-        //         for (const path of this._select!) {
-        //             const value = path.split('.').reduce((acc, key) => acc?.[key], row);
-        //             Dot.str(path, value, selected);
-        //         }
-        //         return selected;
-        //     });
-        // }
-        //  for (const join of this.joinConfigs) {
-        //     const foreignTable = this.db[join.store] as Dexie.Table<any, any>;
-        //     const foreignRows = await foreignTable.toArray();
 
-        //     results = results.map((row:any) => {
-        //         const match = foreignRows.find(f =>
-        //             f[join.foreignKey] === row[join.localKey]
-        //         );
-        //         return {
-        //             ...row,
-        //             [join.as]: match, // inject whole row under 'as'
-        //         };
-        //     });
-        // }
         return results as any;
     }
 
@@ -343,5 +322,18 @@ export class QueryBuilder<
     async findAndCount(): Promise<{ data: Row<Tables, TableName>[] | undefined, count: number }> {
         const data = await this.findMany();
         return { data, count: data.length };
+    }
+
+    /**
+     * Returns the count of items matching the current query conditions.
+     *
+     * @returns A promise that resolves to the number of matching records.
+     */
+    async count(): Promise<number> {
+        if (!this.whereClauses.length && !this.orClauses.length) {
+            return this.table.count();
+        }
+        const data = await this.findMany();
+        return data.length;
     }
 }

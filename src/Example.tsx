@@ -12,7 +12,7 @@ export default function ExampleComponent() {
         console.log('Loaded from cache:', cached.name);
       }
     })();
-  }, []);
+  }, [cache]);
 
   const upload = async () => {
     if (file) {

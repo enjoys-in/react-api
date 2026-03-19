@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 
 
 
@@ -15,7 +15,7 @@ const debounce = (fn: Function, delay: number) => {
 /**
  * Custom event hook with memoized handlers to prevent recreations on every render.
  */
-export function useReactEvent<EventKey extends string, T = any>(eventKey: EventKey) {
+export function useReactEvent<EventKey extends string, T = any>(eventKey: EventKey, debounceDelay?: number) {
     const onceFired = useRef(false);
 
     // Emit event, memoized so `emit` has stable reference
@@ -31,13 +31,13 @@ export function useReactEvent<EventKey extends string, T = any>(eventKey: EventK
         }
     }, [emit]);
 
-    // Debounced emit: returns a stable debounced function for the given delay
-    const emitDebounce = useCallback((delay: number) => {
-        const debounced = debounce((payload: T) => {
+    // Stable debounced emit: uses useMemo so the debounced function is created once per delay
+    const emitDebounced = useMemo(() => {
+        const delay = debounceDelay ?? 300;
+        return debounce((payload: T) => {
             emit(payload);
         }, delay);
-        return debounced;
-    }, [emit]);
+    }, [emit, debounceDelay]);
 
     // Listen to event, returns unsubscribe function
     const listen = useCallback((handler: Callback<T>) => {
@@ -58,7 +58,7 @@ export function useReactEvent<EventKey extends string, T = any>(eventKey: EventK
     return {
         emit,
         emitOnce,
-        emitDebounce,
+        emitDebounced,
         listen,
         listenOnce,
     };

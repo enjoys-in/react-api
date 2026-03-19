@@ -7,6 +7,7 @@ export type CacheMeta = {
 export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
   private cacheName: string;
   private metaKey = '/__cache_meta__';
+  private metaCache: Record<string, CacheMeta> | null = null;
 
   constructor(cacheName = 'api-cache') {
     this.cacheName = cacheName;
@@ -21,12 +22,15 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
   }
 
   private async loadMeta(): Promise<Record<string, CacheMeta>> {
+    if (this.metaCache) return this.metaCache;
     const cache = await this.getCache();
     const response = await cache.match(this.metaKey);
-    return response ? await response.json() : {};
+    this.metaCache = response ? await response.json() : {};
+    return this.metaCache!;
   }
 
   private async saveMeta(meta: Record<string, CacheMeta>) {
+    this.metaCache = meta;
     const cache = await this.getCache();
     const response = new Response(JSON.stringify(meta), {
       headers: { 'Content-Type': 'application/json' },
@@ -40,7 +44,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
     await this.saveMeta(meta);
   }
 
-  private async isExpired(meta: CacheMeta): Promise<boolean> {
+  private isExpired(meta: CacheMeta): boolean {
     if (!meta.ttl) return false;
     return Date.now() - meta.createdAt > meta.ttl * 1000;
   }
@@ -56,7 +60,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
 
   async get<K extends keyof CacheResponseMap>(key: K): Promise<CacheResponseMap[K] | undefined> {
     const meta = (await this.loadMeta())[String(key)];
-    if (meta && (await this.isExpired(meta))) {
+    if (meta && this.isExpired(meta)) {
       await this.delete(String(key));
       return undefined;
     }
@@ -82,7 +86,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
 
   async getHTML(key: string): Promise<string | null> {
     const meta = (await this.loadMeta())[key];
-    if (meta && (await this.isExpired(meta))) {
+    if (meta && this.isExpired(meta)) {
       await this.delete(key);
       return null;
     }
@@ -100,7 +104,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
 
   async getBlob(key: string): Promise<Blob | null> {
     const meta = (await this.loadMeta())[key];
-    if (meta && (await this.isExpired(meta))) {
+    if (meta && this.isExpired(meta)) {
       await this.delete(key);
       return null;
     }
@@ -138,7 +142,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
 
   async has(key: string): Promise<boolean> {
     const meta = await this.loadMeta();
-    if (meta[key] && (await this.isExpired(meta[key]))) {
+    if (meta[key] && this.isExpired(meta[key])) {
       await this.delete(key);
       return false;
     }
@@ -149,7 +153,11 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
 
   async keys(): Promise<string[]> {
     const meta = await this.loadMeta();
-    return Object.keys(meta);
+    const validKeys: string[] = [];
+    for (const [key, value] of Object.entries(meta)) {
+      if (!this.isExpired(value)) validKeys.push(key);
+    }
+    return validKeys;
   }
 
   async select(
@@ -159,7 +167,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
     const results: string[] = [];
 
     for (const [key, value] of Object.entries(meta)) {
-      if (await this.isExpired(value)) continue;
+      if (this.isExpired(value)) continue;
       if (await predicate(key, value)) results.push(key);
     }
 
@@ -167,6 +175,7 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
   }
 
   async clear() {
+    this.metaCache = null;
     await caches.delete(this.cacheName);
   }
 

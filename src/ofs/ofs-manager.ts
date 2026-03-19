@@ -16,14 +16,6 @@ export class OFSManager {
   }
 
   /**
-   * Checks whether a file exists at the specified path.
-   * 
-   * @param path - The path of the file to check for existence.
-   * @returns A promise that resolves to true if the file exists, false otherwise.
-   * @throws An error if the OFS is not initialized.
-   */
-
-  /**
    * Checks if a file exists at the given path within the directory.
    *
    * @param path - The path of the file to check for existence.
@@ -33,7 +25,7 @@ export class OFSManager {
   async fileExists(path: string): Promise<boolean> {
     if (!this.rootHandle) throw new Error("OFS not initialized");
     try {
-      await this.rootHandle.getFileHandle(path, { create: false });
+      await this.getFileHandle(path);
       return true;
     } catch {
       return false;
@@ -95,23 +87,28 @@ export class OFSManager {
    * @throws An error if the OFS is not initialized.
    */
   async deleteFile(path: string): Promise<void> {
-    await this.rootHandle?.removeEntry(path);
+    if (!this.rootHandle) throw new Error("OFS not initialized");
+    const parts = path.split('/');
+    const fileName = parts.pop()!;
+    let dir = this.rootHandle;
+    for (const segment of parts) {
+      dir = await dir.getDirectoryHandle(segment);
+    }
+    await dir.removeEntry(fileName);
   }
 
   /**
    * Retrieves a file handle for the specified path within the
-   * user-selected directory. If the file does not exist, and
-   * the `create` option is true, then the file is created.
-   *
-   * @private
-   *
-   * @param path The path to the file relative to the user-selected
-   * directory.
-   * @param create Whether to create the file if it does not exist.
-   * @returns A promise that resolves to the file handle.
+   * user-selected directory. Supports nested paths (e.g. "folder/file.txt").
    */
   private async getFileHandle(path: string, create = false): Promise<FileSystemFileHandle> {
     if (!this.rootHandle) throw new Error("OFS not initialized");
-    return await this.rootHandle.getFileHandle(path, { create });
+    const parts = path.split('/');
+    const fileName = parts.pop()!;
+    let dir = this.rootHandle;
+    for (const segment of parts) {
+      dir = await dir.getDirectoryHandle(segment, { create });
+    }
+    return await dir.getFileHandle(fileName, { create });
   }
 }

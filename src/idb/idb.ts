@@ -63,8 +63,8 @@ export class IDB<Tables extends { [key: string]: Table }> {
     private getPrimaryKeyForTable(tableName: keyof TableSchema<Table>): string {
         const schema = this.tables[tableName];
         const keys = schema.split(",").map((key) => key.trim());
-        const validKeys = keys.filter((key) => !key.startsWith("++"));
-        return validKeys[0];
+        const primaryKey = keys[0].replace(/^\+\+/, '');
+        return primaryKey;
     }
     /**
      * Checks if a given record exists in the database.
@@ -368,17 +368,13 @@ export class IDB<Tables extends { [key: string]: Table }> {
             collection = tableRef.toCollection();
         }
 
-        // // Apply sorting
-        // if (sortBy) {
-        //   collection = collection.sortBy("sortBy");
-        // }
-
-        // collection.count()
-        // collection.keys()
-        // collection.uniqueKeys()
-        // collection.first()
-        // collection.filter()
-        // collection.last()
+        // Apply sorting
+        if (sortBy) {
+            return (reverse
+                ? collection.reverse()
+                : collection
+            ).offset(offset).limit(limit).sortBy(sortBy as string);
+        }
 
         if (reverse) {
             collection = collection.reverse();
@@ -465,18 +461,6 @@ export class IDB<Tables extends { [key: string]: Table }> {
      * @returns A promise that resolves once the items have been pruned.
      */
     async pruneOldItems<K extends keyof Tables>(
-        /**
-         * Prunes old items from the specified table, so that there are never more
-         * than `maxLimit` items in the table.
-         *
-         * @param table - The name of the table from which to prune items.
-         * @param keyField - The field to use as the primary key to determine the
-         * oldest items.
-         * @param maxLimit - The maximum number of items to allow in the table.
-         * Defaults to 50.
-         *
-         * @returns A promise that resolves once the items have been pruned.
-         */
         table: K,
         keyField: keyof Tables[K],
         maxLimit = 50
