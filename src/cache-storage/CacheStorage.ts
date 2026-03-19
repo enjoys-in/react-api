@@ -182,4 +182,26 @@ export class CacheStorageUtil<CacheResponseMap extends Record<string, any>> {
   async size(): Promise<number> {
     return (await this.keys()).length;
   }
+
+  async getOrSet<K extends keyof CacheResponseMap>(
+    key: K,
+    fetcher: () => Promise<CacheResponseMap[K]>,
+    ttl?: number
+  ): Promise<CacheResponseMap[K]> {
+    const cached = await this.get(key);
+    if (cached !== undefined) return cached;
+    const data = await fetcher();
+    await this.put(key, data, ttl);
+    return data;
+  }
+
+  async getMeta(key: string): Promise<CacheMeta | undefined> {
+    const meta = (await this.loadMeta())[key];
+    if (!meta) return undefined;
+    if (this.isExpired(meta)) {
+      await this.delete(key);
+      return undefined;
+    }
+    return meta;
+  }
 }
