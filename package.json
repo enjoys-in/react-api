@@ -31,6 +31,16 @@
       "types": "./dist/cache-storage/index.d.ts",
       "import": "./dist/cache-storage/index.mjs",
       "require": "./dist/cache-storage/index.js"
+    },
+    "./broadcast-channel": {
+      "types": "./dist/broadcast-channel/index.d.ts",
+      "import": "./dist/broadcast-channel/index.mjs",
+      "require": "./dist/broadcast-channel/index.js"
+    },
+    "./broadcast": {
+      "types": "./dist/broadcast-channel/index.d.ts",
+      "import": "./dist/broadcast-channel/index.mjs",
+      "require": "./dist/broadcast-channel/index.js"
     }
   },
   "files": [
@@ -50,6 +60,12 @@
     "event hooks",
     "custom event",
     "react event",
+    "broadcast-channel",
+    "broadcastchannel",
+    "broadcast",
+    "cross-tab",
+    "cross-tab synchronization",
+    "multi-tab sync",
     "storage",
     "data sync",
     "client-side storage",

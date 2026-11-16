@@ -10,6 +10,7 @@ const entries = [
   { input: './src/ofs/index.ts', dir: 'dist/ofs' },
   { input: './src/events/index.ts', dir: 'dist/events' },
   { input: './src/cache-storage/index.ts', dir: 'dist/cache-storage' },
+  { input: './src/broadcast-channel/index.ts', dir: 'dist/broadcast-channel' },
 ];
 
 const external = [

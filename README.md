@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/npm/l/@enjoys/react-api)](./LICENSE.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 
-A collection of type-safe React hooks and utilities for browser-native APIs — IndexedDB, Cache Storage, File System Access, and Custom Events.
+A collection of type-safe React hooks and utilities for browser-native APIs — IndexedDB, Cache Storage, File System Access, Custom Events, and BroadcastChannel.
 
 ---
 
@@ -15,6 +15,7 @@ A collection of type-safe React hooks and utilities for browser-native APIs — 
 | **IDB** | IndexedDB via Dexie — typed CRUD, QueryBuilder, operators, nested objects, TTL pruning | `@enjoys/react-api/idb` |
 | **Cache Storage** | Browser Cache API — JSON, Blob, File, HTML, ArrayBuffer with TTL & metadata | `@enjoys/react-api/cache-storage` |
 | **Events** | Cross-component CustomEvent hook — emit, listen, debounce, fire-once | `@enjoys/react-api/events` |
+| **Broadcast Channel** | Cross-tab synchronization via BroadcastChannel — emit, listen, cross-tab state sync | `@enjoys/react-api/broadcast-channel` |
 | **OFS** | File System Access API — read/write/delete files with nested directory support | `@enjoys/react-api/ofs` |
 
 ---
@@ -114,6 +115,36 @@ function Receiver() {
 }
 ```
 
+### Broadcast Channel (Cross-Tab Synchronization)
+
+```tsx
+import { useBroadcastChannel, useBroadcastListener, useBroadcastState } from '@enjoys/react-api/broadcast-channel';
+
+// Tab A: Post cross-tab message
+function LogoutButton() {
+  const { emit } = useBroadcastChannel('auth');
+  return <button onClick={() => emit({ type: 'logout' })}>Log Out Everywhere</button>;
+}
+
+// Tab B: Auto-subscribe to cross-tab messages
+function AuthListener() {
+  useBroadcastListener('auth', (event) => {
+    if (event.type === 'logout') window.location.href = '/login';
+  });
+  return null;
+}
+
+// Synchronized reactive state across all open tabs
+function ThemeToggle() {
+  const [theme, setTheme] = useBroadcastState<'light' | 'dark'>('theme', 'light');
+  return (
+    <button onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}>
+      Theme: {theme}
+    </button>
+  );
+}
+```
+
 ---
 
 ## Documentation
@@ -123,6 +154,7 @@ function Receiver() {
 | IndexedDB | [IDB Documentation](./src/docs/idb.md) |
 | Cache Storage | [Cache Storage Documentation](./src/docs/cache-storage.md) |
 | Events | [Events Documentation](./src/docs/events.md) |
+| Broadcast Channel | [Broadcast Channel Documentation](./src/docs/broadcast-channel.md) |
 | OFS (File System) | [OFS Documentation](./src/docs/ofs.md) |
 
 ---
@@ -132,10 +164,11 @@ function Receiver() {
 Each module is a separate entry point — only the code you import gets bundled:
 
 ```tsx
-import { IDB } from '@enjoys/react-api/idb';           // Only IDB
-import { useCache } from '@enjoys/react-api/cache-storage'; // Only Cache
-import { useReactEvent } from '@enjoys/react-api/events';   // Only Events
-import { useOFS } from '@enjoys/react-api/ofs';             // Only OFS
+import { IDB } from '@enjoys/react-api/idb';                       // Only IDB
+import { useCache } from '@enjoys/react-api/cache-storage';             // Only Cache
+import { useReactEvent } from '@enjoys/react-api/events';               // Only Events
+import { useBroadcastChannel } from '@enjoys/react-api/broadcast-channel'; // Only BroadcastChannel
+import { useOFS } from '@enjoys/react-api/ofs';                         // Only OFS
 ```
 
 Supports both ESM (`import`) and CJS (`require`).
